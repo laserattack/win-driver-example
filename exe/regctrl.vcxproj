@@ -180,7 +180,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="capture.c" />
     <ClCompile Include="regctrl.c" />
     <ClCompile Include="util.c" />
     <ResourceCompile Include="regctrl.rc" />

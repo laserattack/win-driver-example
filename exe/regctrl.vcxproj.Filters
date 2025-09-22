@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="capture.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="regctrl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
