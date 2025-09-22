@@ -66,26 +66,6 @@ extern HKEY g_RootKey;
 extern ULONG g_MajorVersion;
 extern ULONG g_MinorVersion;
 
-
-//
-// The user mode samples
-//
-
-VOID 
-PreNotificationBlockSample();
-
-VOID 
-PreNotificationBypassSample();
-
-VOID
-PostNotificationOverrideSuccessSample();
-
-VOID
-PostNotificationOverrideErrorSample();
-
-VOID
-CaptureSample();
-
 //
 // Utility routines to load and unload the driver
 //
