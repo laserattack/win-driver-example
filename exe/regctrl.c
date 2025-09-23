@@ -65,12 +65,13 @@ wmain(
         InfoPrint("Callback version is %u.%u", g_MajorVersion, g_MinorVersion);
     }
 
+    DoKernelModeSamples();
+
     // Основной цикл программы
     while (TRUE) {
         printf("\n");
         printf("Available commands:\n");
-        printf("1. run     - Execute all kernel-mode samples\n");
-        printf("2. exit    - Unload driver and exit\n");
+        printf("1. exit    - Unload driver and exit\n");
         printf("Enter command: ");
 
         // Читаем команду от пользователя
@@ -82,13 +83,7 @@ wmain(
         Command[wcslen(Command) - 1] = L'\0';
 
         // Обрабатываем команду
-        if (_wcsicmp(Command, L"run") == 0 || _wcsicmp(Command, L"1") == 0) {
-            printf("Executing kernel-mode samples...\n");
-            DoKernelModeSamples();
-            printf("Samples execution completed.\n");
-
-        }
-        else if (_wcsicmp(Command, L"exit") == 0 || _wcsicmp(Command, L"2") == 0) {
+        if (_wcsicmp(Command, L"exit") == 0 || _wcsicmp(Command, L"1") == 0) {
             printf("Exiting...\n");
             break;
 
@@ -100,7 +95,6 @@ wmain(
         }
         else {
             printf("Unknown command: %ws\n", Command);
-            printf("Type 'run' or 'exit'\n");
         }
     }
 

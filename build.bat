@@ -32,6 +32,7 @@ mkdir "bin" >nul 2>&1
 
 :: Сборка проекта
 msbuild regfltr.sln ^
+    /t:Rebuild ^
     /p:Configuration=Debug ^
     /p:Platform=x64 ^
     /p:PlatformToolset=WindowsKernelModeDriver10.0 ^
