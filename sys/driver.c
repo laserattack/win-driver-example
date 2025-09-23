@@ -447,6 +447,7 @@ Return Value:
 
     if (g_IsImageNotifyRegistered) {
         PsRemoveLoadImageNotifyRoutine(LoadImageNotifyRoutine);
+        InfoPrint("Unregistered load image callback");
         g_IsImageNotifyRegistered = FALSE;
     }
 

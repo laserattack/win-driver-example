@@ -128,10 +128,10 @@ LoadImageNotifyRoutine(
 
     if (FullImageName != NULL) {
         // Логируем: PID + путь к загруженному модулю
-        InfoPrint("[LOADED] PID: %d, Module: %wZ", ProcessId, FullImageName);
+        InfoPrint("[PID: %d] Callback: Module: %wZ", ProcessId, FullImageName);
     }
     else {
-        InfoPrint("[LOADED] PID: %d, Module: <unknown>", ProcessId);
+        InfoPrint("[PID: %d] Callback: Module: unknown", ProcessId);
     }
 }
 
