@@ -435,7 +435,6 @@ Return Value:
 {
 
 
-    // Снимаем callback если он был зарегистрирован
     if (g_IsCallbackRegistered) {
         CmUnRegisterCallback(g_RegistryCallbackCookie);
         InfoPrint("Unregistered callback with cookie: 0x%llx",
