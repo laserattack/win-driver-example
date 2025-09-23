@@ -99,9 +99,29 @@ CallbackPreNotificationLog(
     PEPROCESS Process = PsGetCurrentProcess();
     CHAR ProcessName[16] = {0};
 
+    // --- ДОБАВЛЕНО: Получение и форматирование времени ---
+    LARGE_INTEGER SystemTime, LocalTime;
+    TIME_FIELDS TimeFields;
+    CHAR TimeBuffer[64] = {0}; // Формат: "YYYY-MM-DD HH:MM:SS.XXXXXX"
+
+    KeQuerySystemTime(&SystemTime);
+    ExSystemTimeToLocalTime(&SystemTime, &LocalTime); // Переводим в локальное время
+    RtlTimeToTimeFields(&LocalTime, &TimeFields);
+
+    // Форматируем строку времени
+    _snprintf_s(TimeBuffer, sizeof(TimeBuffer), _TRUNCATE,
+        "%04d-%02d-%02d %02d:%02d:%02d.%06d",
+        TimeFields.Year,
+        TimeFields.Month,
+        TimeFields.Day,
+        TimeFields.Hour,
+        TimeFields.Minute,
+        TimeFields.Second,
+        TimeFields.Milliseconds * 1000); // приблизительные микросекунды
+
     if (Process != NULL) {
-        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8);
-        
+        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8); // ОСТАВЛЕНО КАК БЫЛО
+
         __try {
             if (ImageName != NULL) {
                 strncpy(ProcessName, ImageName, 15);
@@ -115,7 +135,8 @@ CallbackPreNotificationLog(
     switch(NotifyClass) {
         case RegNtPreCreateKeyEx:
             PreCreateInfo = (PREG_CREATE_KEY_INFORMATION) Argument2;
-            InfoPrint("[PID: %d, Process: %s] Callback: Create key %wZ.", 
+            InfoPrint("[%s] [PID: %d, Process: %s] Callback: Create key %wZ.", 
+                        TimeBuffer,          // ← ДОБАВЛЕНО ВРЕМЯ
                         ProcessId,
                         ProcessName,
                         PreCreateInfo->CompleteName);
@@ -134,7 +155,8 @@ CallbackPreNotificationLog(
             );
 
             if (NT_SUCCESS(Status) && KeyName != NULL) {
-                InfoPrint("[PID: %d, Process: %s] Callback: Set key %wZ value %wZ.",
+                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set key %wZ value %wZ.",
+                    TimeBuffer,              // ← ДОБАВЛЕНО ВРЕМЯ
                     ProcessId,
                     ProcessName,
                     KeyName,
@@ -143,7 +165,8 @@ CallbackPreNotificationLog(
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
             }
             else {
-                InfoPrint("[PID: %d, Process: %s] Callback: Set value %wZ (key name unavailable).",
+                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set value %wZ (key name unavailable).",
+                    TimeBuffer,              // ← ДОБАВЛЕНО ВРЕМЯ
                     ProcessId,
                     ProcessName,
                     PreSetValueInfo->ValueName);
