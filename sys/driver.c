@@ -24,6 +24,7 @@ Environment:
 
 LARGE_INTEGER g_RegistryCallbackCookie = { 0 };
 BOOLEAN g_IsCallbackRegistered = FALSE;
+BOOLEAN g_IsImageNotifyRegistered = FALSE;
 
 
 DRIVER_INITIALIZE DriverEntry;
@@ -205,6 +206,8 @@ Return value:
 
     g_IsCallbackRegistered = FALSE;
     g_RegistryCallbackCookie.QuadPart = 0;
+
+    g_IsImageNotifyRegistered = FALSE;
 
     //
     // Create a link in the Win32 namespace.
@@ -440,6 +443,11 @@ Return Value:
         InfoPrint("Unregistered callback with cookie: 0x%llx",
             g_RegistryCallbackCookie.QuadPart);
         g_IsCallbackRegistered = FALSE;
+    }
+
+    if (g_IsImageNotifyRegistered) {
+        PsRemoveLoadImageNotifyRoutine(LoadImageNotifyRoutine);
+        g_IsImageNotifyRegistered = FALSE;
     }
 
     UNICODE_STRING  DosDevicesLinkName;

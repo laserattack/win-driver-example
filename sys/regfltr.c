@@ -86,32 +86,11 @@ DoCallbackSamples(
     _In_ PDEVICE_OBJECT DeviceObject,
     _In_ PIRP Irp
     )
-/*++
-
-Routine Description:
-
-    This routine creates the root test key and then invokes the sample.
-    It records the results of each sample in an array that it returns to
-    the usermode program.
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-    
-Return Value:
-
-    NTSTATUS
-
---*/
 {
-    NTSTATUS Status;
+    NTSTATUS Status = STATUS_SUCCESS;
     PIO_STACK_LOCATION IrpStack;
     ULONG OutputBufferLength;
     PDO_KERNELMODE_SAMPLES_OUTPUT Output;
-    UNICODE_STRING KeyPath;
-    OBJECT_ATTRIBUTES KeyAttributes;
 
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -131,36 +110,6 @@ Return Value:
     Output = (PDO_KERNELMODE_SAMPLES_OUTPUT) Irp->AssociatedIrp.SystemBuffer;
 
     //
-    // Clean up test keys in case the sample terminated uncleanly.
-    //
-
-    DeleteTestKeys();
-
-    //
-    // Create the root key and the modified root key
-    //
-    
-    RtlInitUnicodeString(&KeyPath, ROOT_KEY_ABS_PATH);
-    InitializeObjectAttributes(&KeyAttributes,
-                               &KeyPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               NULL,
-                               NULL);
-
-    Status = ZwCreateKey(&g_RootKey,
-                         KEY_ALL_ACCESS,
-                         &KeyAttributes,
-                         0,
-                         NULL,
-                         0,
-                         NULL);
-
-    if (!NT_SUCCESS(Status)) {
-        ErrorPrint("ZwCreateKey failed. Status 0x%x", Status);
-        return Status;
-    }
-
-    //
     // Call each demo and record the results in the Output->SampleResults
     // array
     //
@@ -170,12 +119,10 @@ Return Value:
 
     Irp->IoStatus.Information = sizeof(DO_KERNELMODE_SAMPLES_OUTPUT);
 
-  Exit:
+    LoadImageNotifySample();
 
-    if (g_RootKey) {
-        ZwDeleteKey(g_RootKey);
-        ZwClose(g_RootKey);
-    }
+
+  Exit:
 
     InfoPrint("");
     InfoPrint("Kernel Mode Samples End");
@@ -322,111 +269,4 @@ Return Value:
         default:
             return L"Unsupported REG_NOTIFY_CLASS";
     }
-}
-
-VOID
-DeleteTestKeys(
-    )
-/*++
-
-
---*/
-{
-    NTSTATUS Status;
-    UNICODE_STRING KeyPath;
-    OBJECT_ATTRIBUTES KeyAttributes;
-    HANDLE RootKey = NULL;
-    HANDLE ChildKey = NULL;
-
-    //
-    // Check if the root key can be opened. If it can be opened, a previous
-    // run must have not completed cleanly. Delete the key and recreate the 
-    // root key.
-    //
-
-    RtlInitUnicodeString(&KeyPath, ROOT_KEY_ABS_PATH);
-    InitializeObjectAttributes(&KeyAttributes,
-                               &KeyPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               NULL,
-                               NULL);
-
-    Status = ZwOpenKey(&RootKey,
-                       KEY_ALL_ACCESS,
-                       &KeyAttributes);
-
-    if (Status == STATUS_OBJECT_NAME_NOT_FOUND) {
-        return;
-    } else if (!NT_SUCCESS(Status)) {
-        ErrorPrint("Opening root key fails with unexpected status %x.", Status);
-    }
-
-    RtlInitUnicodeString(&KeyPath, KEY_NAME);
-    InitializeObjectAttributes(&KeyAttributes,
-                               &KeyPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               RootKey,
-                               NULL);
-
-    Status = ZwOpenKey(&ChildKey,
-                       KEY_ALL_ACCESS,
-                       &KeyAttributes);
-
-    if (NT_SUCCESS(Status)) {
-        ZwDeleteKey(ChildKey);
-        ZwClose(ChildKey);
-        ChildKey = NULL;
-    } else if (Status != STATUS_OBJECT_NAME_NOT_FOUND) {
-        ErrorPrint("Opening %S key fails with unexpected status %x.", 
-                   KEY_NAME,
-                   Status);
-    }
-
-    RtlInitUnicodeString(&KeyPath, NOT_MODIFIED_KEY_NAME);
-    InitializeObjectAttributes(&KeyAttributes,
-                               &KeyPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               RootKey,
-                               NULL);
-
-    Status = ZwOpenKey(&ChildKey,
-                       KEY_ALL_ACCESS,
-                       &KeyAttributes);
-
-    if (NT_SUCCESS(Status)) {
-        ZwDeleteKey(ChildKey);
-        ZwClose(ChildKey);
-        ChildKey = NULL;
-    } else if (Status != STATUS_OBJECT_NAME_NOT_FOUND) {
-        ErrorPrint("Opening %S key fails with unexpected status %x.", 
-                   NOT_MODIFIED_KEY_NAME,
-                   Status);
-    }
-
-    RtlInitUnicodeString(&KeyPath, MODIFIED_KEY_NAME);
-    InitializeObjectAttributes(&KeyAttributes,
-                               &KeyPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               RootKey,
-                               NULL);
-
-    Status = ZwOpenKey(&ChildKey,
-                       KEY_ALL_ACCESS,
-                       &KeyAttributes);
-
-    if (NT_SUCCESS(Status)) {
-        ZwDeleteKey(ChildKey);
-        ZwClose(ChildKey);
-        ChildKey = NULL;
-    } else if (Status != STATUS_OBJECT_NAME_NOT_FOUND) {
-        ErrorPrint("Opening %S key fails with unexpected status %x.", 
-                   MODIFIED_KEY_NAME,
-                   Status);
-    }
-
-    ZwDeleteKey(RootKey);
-    ZwClose(RootKey);
-
-    return;
-
 }

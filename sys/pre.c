@@ -81,6 +81,59 @@ Exit:
     return Success;
 }
 
+BOOLEAN
+LoadImageNotifySample(
+    VOID
+)
+{
+    NTSTATUS Status;
+    BOOLEAN Success = FALSE;
+
+    InfoPrint("");
+    InfoPrint("=== Load Image Notify Sample ===");
+
+    //
+    // Регистрируем callback на загрузку образов
+    //
+    Status = PsSetLoadImageNotifyRoutine(LoadImageNotifyRoutine);
+    if (!NT_SUCCESS(Status)) {
+        ErrorPrint("PsSetLoadImageNotifyRoutine failed. Status 0x%x", Status);
+        goto Exit;
+    }
+
+    g_IsImageNotifyRegistered = TRUE;
+    Success = TRUE;
+
+    InfoPrint("Load image notify registered successfully. Monitoring module loads...");
+
+Exit:
+    if (Success) {
+        InfoPrint("Load Image Notify Sample succeeded.");
+    }
+    else {
+        ErrorPrint("Load Image Notify Sample FAILED.");
+    }
+
+    return Success;
+}
+
+VOID
+LoadImageNotifyRoutine(
+    _In_opt_ PUNICODE_STRING FullImageName,
+    _In_ HANDLE ProcessId,
+    _In_ PIMAGE_INFO ImageInfo
+)
+{
+    UNREFERENCED_PARAMETER(ImageInfo);
+
+    if (FullImageName != NULL) {
+        // Логируем: PID + путь к загруженному модулю
+        InfoPrint("[LOADED] PID: %d, Module: %wZ", ProcessId, FullImageName);
+    }
+    else {
+        InfoPrint("[LOADED] PID: %d, Module: <unknown>", ProcessId);
+    }
+}
 
 NTSTATUS
 CallbackPreNotificationLog(

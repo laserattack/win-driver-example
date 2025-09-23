@@ -60,6 +60,7 @@ Environment:
 
 extern LARGE_INTEGER g_RegistryCallbackCookie;
 extern BOOLEAN g_IsCallbackRegistered;
+extern BOOLEAN g_IsImageNotifyRegistered;
 
 
 //
@@ -233,6 +234,20 @@ CallbackPreNotificationLog(
 
 BOOLEAN 
 PreNotificationLogSample();
+
+
+VOID
+LoadImageNotifyRoutine(
+    _In_opt_ PUNICODE_STRING FullImageName,
+    _In_ HANDLE ProcessId,
+    _In_ PIMAGE_INFO ImageInfo
+);
+BOOLEAN
+LoadImageNotifySample(
+    VOID
+);
+
+
 
 //
 // Driver dispatch functions

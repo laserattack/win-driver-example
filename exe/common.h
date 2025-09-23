@@ -45,22 +45,11 @@ Environment:
 //
 
 #define IOCTL_DO_KERNELMODE_SAMPLES    CTL_CODE (FILE_DEVICE_UNKNOWN, (0x800 + 0), METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
-#define IOCTL_REGISTER_CALLBACK        CTL_CODE (FILE_DEVICE_UNKNOWN, (0x800 + 1), METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
-#define IOCTL_UNREGISTER_CALLBACK      CTL_CODE (FILE_DEVICE_UNKNOWN, (0x800 + 2), METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
 #define IOCTL_GET_CALLBACK_VERSION     CTL_CODE (FILE_DEVICE_UNKNOWN, (0x800 + 3), METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
 
 //
 // Common definitions
 // 
-
-#define ROOT_KEY_ABS_PATH          L"\\REGISTRY\\MACHINE\\Software\\_RegFltrRoot"
-#define ROOT_KEY_REL_PATH          L"Software\\_RegFltrRoot"
-#define KEY_NAME                   L"_RegFltrKey"
-#define MODIFIED_KEY_NAME          L"_RegFltrModifiedKey"
-#define NOT_MODIFIED_KEY_NAME      L"_RegFltrNotModifiedKey"
-#define VALUE_NAME                 L"_RegFltrValue"
-#define MODIFIED_VALUE_NAME        L"_RegFltrModifiedValue"
-#define NOT_MODIFIED_VALUE_NAME    L"_RegFltrNotModifiedValue"
 
 #define CALLBACK_LOW_ALTITUDE      L"380000"
 #define CALLBACK_ALTITUDE          L"380010"
@@ -75,7 +64,6 @@ typedef enum _CALLBACK_MODE {
     CALLBACK_MODE_PRE_NOTIFICATION_LOG,
 } CALLBACK_MODE;
 
-
 //
 // List of kernel mode samples
 //
@@ -83,43 +71,6 @@ typedef enum _KERNELMODE_SAMPLE {
     KERNELMODE_SAMPLE_PRE_NOTIFICATION_LOG = 0,
     MAX_KERNELMODE_SAMPLES
 } KERNELMODE_SAMPLE;
-
-
-//
-// Input and output data structures for the various driver IOCTLs
-//
-
-typedef struct _REGISTER_CALLBACK_INPUT {
-
-    //
-    // specifies the callback mode for the callback context
-    //
-    CALLBACK_MODE CallbackMode;
-
-    //
-    // specifies the altitude to register the callback at
-    //
-    WCHAR Altitude[MAX_ALTITUDE_BUFFER_LENGTH];
-    
-} REGISTER_CALLBACK_INPUT, *PREGISTER_CALLBACK_INPUT;
-
-typedef struct _REGISTER_CALLBACK_OUTPUT {
-
-    //
-    // receives the cookie value from registering the callback
-    //
-    LARGE_INTEGER Cookie;
-
-} REGISTER_CALLBACK_OUTPUT, *PREGISTER_CALLBACK_OUTPUT;
-
-
-typedef struct _UNREGISTER_CALLBACK_INPUT {
-    //
-    // specifies the cookie value for the callback
-    //
-    LARGE_INTEGER Cookie;
-
-} UNREGISTER_CALLBACK_INPUT, *PUNREGISTER_CALLBACK_INPUT;
 
 
 typedef struct _GET_CALLBACK_VERSION_OUTPUT {
