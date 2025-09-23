@@ -117,10 +117,10 @@ CallbackPreNotificationLog(
         TimeFields.Hour,
         TimeFields.Minute,
         TimeFields.Second,
-        TimeFields.Milliseconds * 1000); // приблизительные микросекунды
+        TimeFields.Milliseconds * 1000);
 
     if (Process != NULL) {
-        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8); // ОСТАВЛЕНО КАК БЫЛО
+        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8);
 
         __try {
             if (ImageName != NULL) {
@@ -135,8 +135,8 @@ CallbackPreNotificationLog(
     switch(NotifyClass) {
         case RegNtPreCreateKeyEx:
             PreCreateInfo = (PREG_CREATE_KEY_INFORMATION) Argument2;
-            InfoPrint("[%s] [PID: %d, Process: %s] Callback: Create key %wZ.", 
-                        TimeBuffer,          // ← ДОБАВЛЕНО ВРЕМЯ
+            InfoPrint("[%s] [PID: %d, Process: %s] Callback: Create key %wZ", 
+                        TimeBuffer,
                         ProcessId,
                         ProcessName,
                         PreCreateInfo->CompleteName);
@@ -155,8 +155,8 @@ CallbackPreNotificationLog(
             );
 
             if (NT_SUCCESS(Status) && KeyName != NULL) {
-                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set key %wZ value %wZ.",
-                    TimeBuffer,              // ← ДОБАВЛЕНО ВРЕМЯ
+                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set key %wZ value %wZ",
+                    TimeBuffer,
                     ProcessId,
                     ProcessName,
                     KeyName,
@@ -165,8 +165,8 @@ CallbackPreNotificationLog(
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
             }
             else {
-                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set value %wZ (key name unavailable).",
-                    TimeBuffer,              // ← ДОБАВЛЕНО ВРЕМЯ
+                InfoPrint("[%s] [PID: %d, Process: %s] Callback: Set value %wZ (key name unavailable)",
+                    TimeBuffer,
                     ProcessId,
                     ProcessName,
                     PreSetValueInfo->ValueName);
