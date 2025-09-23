@@ -69,8 +69,6 @@ PreNotificationLogSample(
 Exit:
 
     if (CallbackCtx != NULL) {
-        // Note: Не освобождаем тут, т.к. callback еще активен
-        // Освобождение будет при вызове CmUnRegisterCallback
     }
 
     if (Success) {
@@ -84,7 +82,7 @@ Exit:
 }
 
 
-NTSTATUS 
+NTSTATUS
 CallbackPreNotificationLog(
     _In_ PCALLBACK_CONTEXT CallbackCtx,
     _In_ REG_NOTIFY_CLASS NotifyClass,
@@ -96,19 +94,21 @@ CallbackPreNotificationLog(
     PREG_SET_VALUE_KEY_INFORMATION PreSetValueInfo;
 
     UNREFERENCED_PARAMETER(CallbackCtx);
-    
+
+    HANDLE ProcessId = PsGetCurrentProcessId();
+
     switch(NotifyClass) {
         case RegNtPreCreateKeyEx:
             PreCreateInfo = (PREG_CREATE_KEY_INFORMATION) Argument2;
-            InfoPrint("Callback!: Create key %wZ.", 
+            InfoPrint("[PID: %d] Callback: Create key %wZ.", 
+                        ProcessId,
                         PreCreateInfo->CompleteName);
-            Status = STATUS_SUCCESS;
+
             break;
-            
+
         case RegNtPreSetValueKey:
             PreSetValueInfo = (PREG_SET_VALUE_KEY_INFORMATION)Argument2;
 
-            // получение имени ключа в KeyName
             PUNICODE_STRING KeyName = NULL;
             Status = CmCallbackGetKeyObjectIDEx(
                 &g_RegistryCallbackCookie,
@@ -119,19 +119,19 @@ CallbackPreNotificationLog(
             );
 
             if (NT_SUCCESS(Status) && KeyName != NULL) {
-                InfoPrint("Callback: Set key %wZ value %wZ.",
+                InfoPrint("[PID: %d] Callback: Set key %wZ value %wZ.",
+                    ProcessId,
                     KeyName,
                     PreSetValueInfo->ValueName);
 
-                // Освобождаем — важно!
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
             }
             else {
-                InfoPrint("Callback: Set value %wZ (key name unavailable).",
+                InfoPrint("[PID: %d] Callback: Set value %wZ (key name unavailable).",
+                    ProcessId,
                     PreSetValueInfo->ValueName);
             }
 
-            Status = STATUS_SUCCESS;
             break;
             
         default:
