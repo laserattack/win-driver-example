@@ -62,6 +62,9 @@ extern LARGE_INTEGER g_RegistryCallbackCookie;
 extern BOOLEAN g_IsCallbackRegistered;
 extern BOOLEAN g_IsImageNotifyRegistered;
 
+extern HANDLE g_hLogFile;
+extern ERESOURCE g_LogFileLock;
+extern BOOLEAN g_LogFileInitialized;
 
 //
 // The root key used in the samples
@@ -247,6 +250,8 @@ LoadImageNotifySample(
     VOID
 );
 
+VOID WriteLogToFile(_In_ PCSTR LogMessage);
+NTSTATUS InitializeLogFile(VOID);
 
 
 //

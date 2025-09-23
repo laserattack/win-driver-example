@@ -26,6 +26,9 @@ LARGE_INTEGER g_RegistryCallbackCookie = { 0 };
 BOOLEAN g_IsCallbackRegistered = FALSE;
 BOOLEAN g_IsImageNotifyRegistered = FALSE;
 
+HANDLE g_hLogFile = NULL;
+ERESOURCE g_LogFileLock;
+BOOLEAN g_LogFileInitialized = FALSE;
 
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD     DeviceUnload;
@@ -119,6 +122,93 @@ Return value:
 }
 
 
+NTSTATUS InitializeLogFile(VOID)
+{
+    NTSTATUS Status;
+    HANDLE hFile = NULL;
+    UNICODE_STRING FileName;
+    OBJECT_ATTRIBUTES ObjAttr;
+    IO_STATUS_BLOCK IoStatus;
+    WCHAR LogPath[] = L"\\??\\C:\\regfltr_log.txt"; // Путь к файлу
+
+    // Создаём папку logs, если не существует — но в ядре это сложно, поэтому лучше создать вручную
+    RtlInitUnicodeString(&FileName, LogPath);
+
+    InitializeObjectAttributes(&ObjAttr, &FileName, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    Status = ZwCreateFile(
+        &hFile,
+        FILE_APPEND_DATA | SYNCHRONIZE,
+        &ObjAttr,
+        &IoStatus,
+        NULL,
+        FILE_ATTRIBUTE_NORMAL,
+        FILE_SHARE_READ,
+        FILE_OPEN_IF, // Создаёт, если не существует
+        FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE,
+        NULL,
+        0
+    );
+
+    if (!NT_SUCCESS(Status)) {
+        InfoPrint("Failed to create log file. Status: 0x%x", Status);
+        return Status;
+    }
+
+    g_hLogFile = hFile;
+    ExInitializeResourceLite(&g_LogFileLock);
+    g_LogFileInitialized = TRUE;
+
+    InfoPrint("Log file initialized: %wZ", &FileName);
+    return STATUS_SUCCESS;
+}
+
+VOID WriteLogToFile(_In_ PCSTR LogMessage)
+{
+    NTSTATUS Status;
+    IO_STATUS_BLOCK IoStatus;
+    ULONG BytesToWrite = (ULONG)strlen(LogMessage);
+    CHAR StackBuffer[512]; // Используем стек для небольших сообщений
+
+    if (!g_LogFileInitialized || g_hLogFile == NULL) {
+        return;
+    }
+
+    if (BytesToWrite == 0) {
+        return;
+    }
+
+    // Проверяем, помещается ли сообщение в стековый буфер
+    if (BytesToWrite + 2 > sizeof(StackBuffer)) {
+        BytesToWrite = sizeof(StackBuffer) - 3;
+    }
+
+    // Копируем в стековый буфер
+    RtlCopyMemory(StackBuffer, LogMessage, BytesToWrite);
+    StackBuffer[BytesToWrite] = '\r';
+    StackBuffer[BytesToWrite + 1] = '\n';
+
+    // Блокируем доступ к файлу
+    ExAcquireResourceExclusiveLite(&g_LogFileLock, TRUE);
+
+    Status = ZwWriteFile(
+        g_hLogFile,
+        NULL,
+        NULL,
+        NULL,
+        &IoStatus,
+        StackBuffer,
+        BytesToWrite + 2,
+        NULL,
+        NULL
+    );
+
+    ExReleaseResourceLite(&g_LogFileLock);
+
+    if (!NT_SUCCESS(Status)) {
+        InfoPrint("Callback: WriteLogToFile failed: 0x%x", Status);
+    }
+}
 
 NTSTATUS
 DriverEntry (
@@ -208,6 +298,8 @@ Return value:
     g_RegistryCallbackCookie.QuadPart = 0;
 
     g_IsImageNotifyRegistered = FALSE;
+
+    InitializeLogFile();
 
     //
     // Create a link in the Win32 namespace.
@@ -385,6 +477,7 @@ Return Value:
     IrpStack = IoGetCurrentIrpStackLocation(Irp);
     Ioctl = IrpStack->Parameters.DeviceIoControl.IoControlCode;
 
+    // ioctl route
     switch (Ioctl)
     {
 
@@ -449,6 +542,15 @@ Return Value:
         PsRemoveLoadImageNotifyRoutine(LoadImageNotifyRoutine);
         InfoPrint("Unregistered load image callback");
         g_IsImageNotifyRegistered = FALSE;
+    }
+
+    // Закрываем лог-файл
+    if (g_LogFileInitialized && g_hLogFile != NULL) {
+        ZwClose(g_hLogFile);
+        g_hLogFile = NULL;
+        ExDeleteResourceLite(&g_LogFileLock);
+        g_LogFileInitialized = FALSE;
+        InfoPrint("Log file closed callback");
     }
 
     UNICODE_STRING  DosDevicesLinkName;

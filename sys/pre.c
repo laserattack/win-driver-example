@@ -167,19 +167,29 @@ LoadImageNotifyRoutine(
         strcpy(ProcessName, "Unknown");
     }
 
+    // --- Формируем строку лога ---
+    CHAR FinalLogLine[512] = { 0 };
+
     if (FullImageName != NULL) {
-        InfoPrint("[%s] [PID: %d, Process: %s] Callback: Module: %wZ",
+        _snprintf_s(FinalLogLine, sizeof(FinalLogLine), _TRUNCATE,
+            "[%s] [PID: %lld, Process: %s] Callback: Module: %wZ",
             TimeBuffer,
-            ProcessId,
+            (LONG64)ProcessId,
             ProcessName,
             FullImageName);
-    }
-    else {
-        InfoPrint("[%s] [PID: %d, Process: %s] Callback: Module: <unknown>",
+    } else {
+        _snprintf_s(FinalLogLine, sizeof(FinalLogLine), _TRUNCATE,
+            "[%s] [PID: %lld, Process: %s] Callback: Module: <unknown>",
             TimeBuffer,
-            ProcessId,
+            (LONG64)ProcessId,
             ProcessName);
     }
+
+    // --- Выводим в отладку ---
+    InfoPrint("%s", FinalLogLine);
+
+    // --- Дублируем в файл ---
+    WriteLogToFile(FinalLogLine);
 }
 
 NTSTATUS
