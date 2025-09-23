@@ -96,14 +96,29 @@ CallbackPreNotificationLog(
     UNREFERENCED_PARAMETER(CallbackCtx);
 
     HANDLE ProcessId = PsGetCurrentProcessId();
+    PEPROCESS Process = PsGetCurrentProcess();
+    CHAR ProcessName[16] = {0};
+
+    if (Process != NULL) {
+        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8);
+        
+        __try {
+            if (ImageName != NULL) {
+                strncpy(ProcessName, ImageName, 15);
+                ProcessName[15] = '\0';
+            }
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            strcpy(ProcessName, "Unknown");
+        }
+    }
 
     switch(NotifyClass) {
         case RegNtPreCreateKeyEx:
             PreCreateInfo = (PREG_CREATE_KEY_INFORMATION) Argument2;
-            InfoPrint("[PID: %d] Callback: Create key %wZ.", 
+            InfoPrint("[PID: %d, Process: %s] Callback: Create key %wZ.", 
                         ProcessId,
+                        ProcessName,
                         PreCreateInfo->CompleteName);
-
             break;
 
         case RegNtPreSetValueKey:
@@ -119,25 +134,23 @@ CallbackPreNotificationLog(
             );
 
             if (NT_SUCCESS(Status) && KeyName != NULL) {
-                InfoPrint("[PID: %d] Callback: Set key %wZ value %wZ.",
+                InfoPrint("[PID: %d, Process: %s] Callback: Set key %wZ value %wZ.",
                     ProcessId,
+                    ProcessName,
                     KeyName,
                     PreSetValueInfo->ValueName);
 
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
             }
             else {
-                InfoPrint("[PID: %d] Callback: Set value %wZ (key name unavailable).",
+                InfoPrint("[PID: %d, Process: %s] Callback: Set value %wZ (key name unavailable).",
                     ProcessId,
+                    ProcessName,
                     PreSetValueInfo->ValueName);
             }
-
             break;
             
         default:
-            //
-            // Do nothing for other notifications
-            //
             break;
     }
 
