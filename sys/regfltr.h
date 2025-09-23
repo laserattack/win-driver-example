@@ -259,12 +259,6 @@ NTSTATUS InitializeLogFile(VOID);
 //
 
 NTSTATUS
-DoCallbackSamples(
-    _In_ PDEVICE_OBJECT DeviceObject,
-    _In_ PIRP Irp
-    );
-
-NTSTATUS
 GetCallbackVersion(
     _In_ PDEVICE_OBJECT DeviceObject,
     _In_ PIRP Irp

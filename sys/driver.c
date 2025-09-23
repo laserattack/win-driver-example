@@ -1,24 +1,3 @@
-/*++
-Copyright (c) Microsoft Corporation.  All rights reserved.
-
-    THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
-    KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
-    PURPOSE.
-
-Module Name:
-
-    regfltr.c
-
-Abstract: 
-
-    Sample driver used to run the kernel mode registry callback samples.
-
-Environment:
-
-    Kernel mode only
-
---*/
 
 #include "regfltr.h"
 
@@ -64,22 +43,6 @@ BOOLEAN g_IsWin8OrGreater = FALSE;
 
 VOID
 DetectOSVersion()
-/*++
-
-Routine Description:
-
-    This routine determines the OS version and initializes some globals used
-    in the sample. 
-
-Arguments:
-    
-    None
-    
-Return value:
-
-    None. On failure, global variables stay at default value
-
---*/
 {
 
     RTL_OSVERSIONINFOEXW VersionInfo = {0};
@@ -120,7 +83,6 @@ Return value:
     }
     
 }
-
 
 NTSTATUS InitializeLogFile(VOID)
 {
@@ -215,31 +177,6 @@ DriverEntry (
     _In_ PDRIVER_OBJECT  DriverObject,
     _In_ PUNICODE_STRING RegistryPath
     )
-/*++
-
-Routine Description:
-
-    This routine is called by the operating system to initialize the driver. 
-    It allocates a device object, initializes the supported Io callbacks, and
-    creates a symlink to make the device accessible to Win32.
-
-    It gets the registry callback version and stores it in the global
-    variables g_MajorVersion and g_MinorVersion. It also calls
-    CreateKTMResourceManager to create a resource manager that is used in 
-    the transaction samples.
-
-Arguments:
-    
-    DriverObject - Supplies the system control object for this test driver.
-
-    RegistryPath - The string location of the driver's corresponding services 
-                   key in the registry.
-
-Return value:
-
-    Success or appropriate failure code.
-
---*/
 {
     NTSTATUS Status;
     UNICODE_STRING NtDeviceName;
@@ -299,6 +236,7 @@ Return value:
 
     g_IsImageNotifyRegistered = FALSE;
 
+    PreNotificationLogSample();
     InitializeLogFile();
 
     //
@@ -346,23 +284,6 @@ DeviceCreate (
     _In_ PDEVICE_OBJECT DeviceObject,
     _Inout_ PIRP Irp
     )
-/*++
-
-Routine Description:
-
-    Dispatches file create requests.  
-    
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    STATUS_NOT_IMPLEMENTED
-
---*/
 {
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -380,23 +301,6 @@ DeviceClose (
     _In_ PDEVICE_OBJECT DeviceObject,
     _Inout_ PIRP Irp
     )
-/*++
-
-Routine Description:
-
-    Dispatches close requests.
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    STATUS_SUCCESS
-
---*/
 {
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -414,23 +318,6 @@ DeviceCleanup (
     _In_ PDEVICE_OBJECT DeviceObject,
     _Inout_ PIRP Irp
     )
-/*++
-
-Routine Description:
-
-    Dispatches cleanup requests.  Does nothing right now.
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    STATUS_SUCCESS
-
---*/
 {
     UNREFERENCED_PARAMETER(DeviceObject);
 
@@ -448,23 +335,6 @@ DeviceControl (
     _In_ PDEVICE_OBJECT DeviceObject,
     _Inout_ PIRP Irp
     )
-/*++
-
-Routine Description:
-
-    Dispatches ioctl requests. 
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    Status returned from the method called.
-
---*/
 {
     PIO_STACK_LOCATION IrpStack;
     ULONG Ioctl;
@@ -482,7 +352,7 @@ Return Value:
     {
 
     case IOCTL_DO_KERNELMODE_SAMPLES:
-        Status = DoCallbackSamples(DeviceObject, Irp);
+        LoadImageNotifySample();
         break;
 
     case IOCTL_GET_CALLBACK_VERSION:
@@ -501,7 +371,7 @@ Return Value:
     IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
     return Status;
-    
+
 }
 
 
@@ -509,25 +379,6 @@ VOID
 DeviceUnload (
     _In_ PDRIVER_OBJECT DriverObject
     )
-/*++
-
-Routine Description:
-
-    Cleans up any driver-level allocations and prepares for unload. All 
-    this driver needs to do is to delete the device object and the 
-    symbolic link between our device name and the Win32 visible name.
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    STATUS_NOT_IMPLEMENTED
-
---*/
 {
 
 

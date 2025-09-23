@@ -81,79 +81,11 @@ Callback (
     
 }
 
-NTSTATUS 
-DoCallbackSamples(
-    _In_ PDEVICE_OBJECT DeviceObject,
-    _In_ PIRP Irp
-    )
-{
-    NTSTATUS Status = STATUS_SUCCESS;
-    PIO_STACK_LOCATION IrpStack;
-    ULONG OutputBufferLength;
-    PDO_KERNELMODE_SAMPLES_OUTPUT Output;
-
-    UNREFERENCED_PARAMETER(DeviceObject);
-
-    //
-    // Get the output buffer from the irp and check it is as large as expected.
-    //
-    
-    IrpStack = IoGetCurrentIrpStackLocation(Irp);
-
-    OutputBufferLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
-
-    if (OutputBufferLength < sizeof (DO_KERNELMODE_SAMPLES_OUTPUT)) {
-        Status = STATUS_INVALID_PARAMETER;
-        goto Exit;
-    }
-
-    Output = (PDO_KERNELMODE_SAMPLES_OUTPUT) Irp->AssociatedIrp.SystemBuffer;
-
-    //
-    // Call each demo and record the results in the Output->SampleResults
-    // array
-    //
-
-    Output->SampleResults[KERNELMODE_SAMPLE_PRE_NOTIFICATION_LOG] =
-        PreNotificationLogSample();
-
-    Irp->IoStatus.Information = sizeof(DO_KERNELMODE_SAMPLES_OUTPUT);
-
-    LoadImageNotifySample();
-
-
-  Exit:
-
-    InfoPrint("");
-    InfoPrint("Kernel Mode Samples End");
-    InfoPrint("");
-    
-    return Status;
-}
-
-
 NTSTATUS
 GetCallbackVersion(
     _In_ PDEVICE_OBJECT DeviceObject,
     _In_ PIRP Irp
     ) 
-/*++
-
-Routine Description:
-
-    Calls CmGetCallbackVersion
-
-Arguments:
-
-    DeviceObject - The device object receiving the request.
-
-    Irp - The request packet.
-
-Return Value:
-
-    NTSTATUS
-
---*/
 {
     NTSTATUS Status = STATUS_SUCCESS;
     PIO_STACK_LOCATION IrpStack;
@@ -202,22 +134,6 @@ LPCWSTR
 GetNotifyClassString (
     _In_ REG_NOTIFY_CLASS NotifyClass
     )
-/*++
-
-Routine Description:
-
-    Converts from NotifyClass to a string
-
-Arguments:
-
-    NotifyClass - value that identifies the type of registry operation that 
-        is being performed
-
-Return Value:
-
-    Returns a string of the name of NotifyClass.
-    
---*/
 {
     switch (NotifyClass) {
         case RegNtPreDeleteKey:                 return L"RegNtPreDeleteKey";
