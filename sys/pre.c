@@ -93,22 +93,44 @@ LoadImageNotifySample(
     InfoPrint("=== Load Image Notify Sample ===");
 
     //
-    // Регистрируем callback на загрузку образов
+    // Переключаем состояние: если зарегистрирован — убираем, если нет — ставим
     //
-    Status = PsSetLoadImageNotifyRoutine(LoadImageNotifyRoutine);
-    if (!NT_SUCCESS(Status)) {
-        ErrorPrint("PsSetLoadImageNotifyRoutine failed. Status 0x%x", Status);
+
+    if (g_IsImageNotifyRegistered) {
+        // Уже зарегистрирован → отменяем
+        InfoPrint("Load image notify is currently registered. Unregistering...");
+
+        PsRemoveLoadImageNotifyRoutine(LoadImageNotifyRoutine);
+        g_IsImageNotifyRegistered = FALSE;
+
+        InfoPrint("Load image notify unregistered successfully.");
+        Success = TRUE;
         goto Exit;
     }
+    else {
+        // Не зарегистрирован → регистрируем
+        InfoPrint("Load image notify is not registered. Registering...");
 
-    g_IsImageNotifyRegistered = TRUE;
-    Success = TRUE;
+        Status = PsSetLoadImageNotifyRoutine(LoadImageNotifyRoutine);
+        if (!NT_SUCCESS(Status)) {
+            ErrorPrint("PsSetLoadImageNotifyRoutine failed. Status 0x%x", Status);
+            goto Exit;
+        }
 
-    InfoPrint("Load image notify registered successfully. Monitoring module loads...");
+        g_IsImageNotifyRegistered = TRUE;
+        Success = TRUE;
+
+        InfoPrint("Load image notify registered successfully. Monitoring module loads...");
+    }
 
 Exit:
     if (Success) {
-        InfoPrint("Load Image Notify Sample succeeded.");
+        if (g_IsImageNotifyRegistered) {
+            InfoPrint("Load Image Notify Sample: ENABLED.");
+        }
+        else {
+            InfoPrint("Load Image Notify Sample: DISABLED.");
+        }
     }
     else {
         ErrorPrint("Load Image Notify Sample FAILED.");

@@ -65,13 +65,13 @@ wmain(
         InfoPrint("Callback version is %u.%u", g_MajorVersion, g_MinorVersion);
     }
 
-    DoKernelModeSamples();
 
     // Основной цикл программы
     while (TRUE) {
         printf("\n");
         printf("Available commands:\n");
         printf("1. exit    - Unload driver and exit\n");
+        printf("2. toggle  - Toggle notify\n");
         printf("Enter command: ");
 
         // Читаем команду от пользователя
@@ -86,12 +86,15 @@ wmain(
         if (_wcsicmp(Command, L"exit") == 0 || _wcsicmp(Command, L"1") == 0) {
             printf("Exiting...\n");
             break;
-
+        }
+        else if (_wcsicmp(Command, L"toggle") == 0 || _wcsicmp(Command, L"2") == 0) {
+            printf("Sending...\n");
+            DoKernelModeSamples();
+            continue;
         }
         else if (wcslen(Command) == 0) {
             // Пустая строка - продолжаем цикл
             continue;
-
         }
         else {
             printf("Unknown command: %ws\n", Command);
