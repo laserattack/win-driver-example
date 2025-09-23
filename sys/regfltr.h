@@ -58,6 +58,10 @@ Environment:
                __VA_ARGS__)
 
 
+extern LARGE_INTEGER g_RegistryCallbackCookie;
+extern BOOLEAN g_IsCallbackRegistered;
+
+
 //
 // The root key used in the samples
 //
@@ -216,154 +220,19 @@ typedef struct _CALLBACK_CONTEXT {
 
 EX_CALLBACK_FUNCTION Callback;
 
-NTSTATUS  
-RMCallback(
-    _In_ PKENLISTMENT EnlistmentObject,
-    _In_ PVOID RMContext,    
-    _In_ PVOID TransactionContext,    
-    _In_ ULONG TransactionNotification,    
-    _Inout_ PLARGE_INTEGER TMVirtualClock,
-    _In_ ULONG ArgumentLength,
-    _In_ PVOID Argument
-    );
-
 //
 // The samples and their corresponding callback helper methods
 //
 
 NTSTATUS 
-CallbackPreNotificationBlock(
+CallbackPreNotificationLog(
     _In_ PCALLBACK_CONTEXT CallbackCtx,
     _In_ REG_NOTIFY_CLASS NotifyClass,
     _Inout_ PVOID Argument2
     );
 
 BOOLEAN 
-PreNotificationBlockSample();
-
-NTSTATUS 
-CallbackPreNotificationBlock(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN 
-PreNotificationBypassSample();
-
-NTSTATUS 
-CallbackPreNotificationBypass(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN 
-PostNotificationOverrideSuccessSample();
-
-NTSTATUS 
-CallbackPostNotificationOverrideSuccess(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN 
-PostNotificationOverrideErrorSample();
-
-NTSTATUS 
-CallbackPostNotificationOverrideError(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN
-TransactionEnlistSample();
-
-NTSTATUS
-CallbackTransactionEnlist(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN
-TransactionReplaySample();
-
-NTSTATUS
-CallbackTransactionReplay(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN
-SetObjectContextSample();
-
-NTSTATUS
-CallbackSetObjectContext(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN
-SetCallContextSample();
-
-NTSTATUS
-CallbackSetCallContext(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN
-MultipleAltitudeBlockDuringPreSample();
-
-BOOLEAN
-MultipleAltitudeInternalInvocationSample();
-
-NTSTATUS
-CallbackMonitor(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-NTSTATUS
-CallbackMultipleAltitude(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-NTSTATUS
-CallbackCapture(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-VOID
-BugCheckSample();
-
-NTSTATUS
-CallbackBugcheck(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
-
-BOOLEAN 
-CreateOpenV1Sample();
-
-NTSTATUS
-CallbackCreateOpenV1(
-    _In_ PCALLBACK_CONTEXT CallbackCtx,
-    _In_ REG_NOTIFY_CLASS NotifyClass,
-    _Inout_ PVOID Argument2
-    );
+PreNotificationLogSample();
 
 //
 // Driver dispatch functions
@@ -376,78 +245,10 @@ DoCallbackSamples(
     );
 
 NTSTATUS
-RegisterCallback(
-    _In_ PDEVICE_OBJECT DeviceObject,
-    _In_ PIRP Irp
-    );
-
-NTSTATUS
-UnRegisterCallback(
-    _In_ PDEVICE_OBJECT DeviceObject,
-    _In_ PIRP Irp
-    );
-
-NTSTATUS
 GetCallbackVersion(
     _In_ PDEVICE_OBJECT DeviceObject,
     _In_ PIRP Irp
     );
-
-//
-// Transaction related routines
-//
-
-NTSTATUS
-CreateKTMResourceManager(
-    _In_ PTM_RM_NOTIFICATION CallbackRoutine,
-    _In_opt_ PVOID RMKey
-    );
-
-NTSTATUS
-EnlistInTransaction(
-    _Out_ PHANDLE EnlistmentHandle,
-    _In_ ACCESS_MASK DesiredAccess,
-    _In_ PVOID Transaction,
-    _In_ NOTIFICATION_MASK NotificationMask,
-    _In_opt_ PVOID EnlistmentKey
-    );
-
-VOID
-DeleteKTMResourceManager(
-    );
-
-
-//
-// Capture methods
-//
-
-NTSTATUS
-CaptureBuffer(
-    _Outptr_result_maybenull_ PVOID *CapturedBuffer,
-    _In_reads_bytes_(Length)PVOID Buffer, 
-    _In_ SIZE_T Length, 
-    _In_ ULONG PoolTag
-    );
-
-VOID
-FreeCapturedBuffer(
-    _In_ PVOID Buffer, 
-    _In_ ULONG PoolTag
-    );
-
-NTSTATUS
-CaptureUnicodeString(
-    _Inout_ UNICODE_STRING * DestString, 
-    _In_ PCUNICODE_STRING SourceString, 
-    _In_ ULONG PoolTag
-    );
-
-VOID
-FreeCapturedUnicodeString(
-    _In_ UNICODE_STRING * String, 
-    _In_ ULONG PoolTag
-    );
-
 
 //
 // Utility methods
@@ -458,31 +259,3 @@ CreateCallbackContext(
     _In_ CALLBACK_MODE CallbackMode, 
     _In_ PCWSTR AltitudeString
     );
-
-BOOLEAN
-InsertCallbackContext(
-    _In_ PCALLBACK_CONTEXT CallbackCtx
-    );
-
-PCALLBACK_CONTEXT
-FindCallbackContext(
-    _In_ LARGE_INTEGER Cookie
-    );
-
-PCALLBACK_CONTEXT
-FindAndRemoveCallbackContext(
-    _In_ LARGE_INTEGER Cookie
-    );
-
-VOID
-DeleteCallbackContext(
-    _In_ PCALLBACK_CONTEXT CallbackCtx
-    );
-
-
-ULONG 
-ExceptionFilter (
-    _In_ PEXCEPTION_POINTERS ExceptionPointers
-    );
-    
-

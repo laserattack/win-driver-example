@@ -19,19 +19,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Capture.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Context.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="driver.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MultiAlt.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Post.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Pre.c">
@@ -40,16 +28,7 @@
     <ClCompile Include="regfltr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TxR.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TxRUtil.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Util.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Version.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

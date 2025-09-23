@@ -37,19 +37,19 @@ VOID __cdecl
 wmain(
     _In_ ULONG argc,
     _In_reads_(argc) LPCWSTR argv[]
-    )
+)
 {
-
     BOOL Result;
+    WCHAR Command[100];
 
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
-    
+
     // Загружает драйвер (создает службу и тд)
     Result = UtilLoadDriver(DRIVER_NAME,
-                             DRIVER_NAME_WITH_EXT,
-                             WIN32_DEVICE_NAME,
-                             &g_Driver);
+        DRIVER_NAME_WITH_EXT,
+        WIN32_DEVICE_NAME,
+        &g_Driver);
 
     if (Result != TRUE) {
         ErrorPrint("UtilLoadDriver failed, exiting...");
@@ -57,26 +57,57 @@ wmain(
     }
 
     printf("\n");
-    printf("Starting Callback samples...\n");
-    printf("\n");
+    printf("=== Registry Filter Driver Controller ===\n");
+    printf("Driver loaded successfully!\n");
 
-    /*
-    Вызов этой функции заполняет эти глобальные переменные
-    ULONG g_MajorVersion;
-    ULONG g_MinorVersion;
-    В зависимости от их значений приложение решает какие примеры можно запускать
-    */
+    // Получаем версию callback'ов
     if (GetCallbackVersion()) {
         InfoPrint("Callback version is %u.%u", g_MajorVersion, g_MinorVersion);
     }
 
-    /*
-    Приказывает драйверу выполнить все kernel-mode примеры
-    */
-    DoKernelModeSamples();
-    
+    // Основной цикл программы
+    while (TRUE) {
+        printf("\n");
+        printf("Available commands:\n");
+        printf("1. run     - Execute all kernel-mode samples\n");
+        printf("2. exit    - Unload driver and exit\n");
+        printf("Enter command: ");
+
+        // Читаем команду от пользователя
+        if (fgetws(Command, ARRAYSIZE(Command), stdin) == NULL) {
+            break;
+        }
+
+        // Убираем символ новой строки
+        Command[wcslen(Command) - 1] = L'\0';
+
+        // Обрабатываем команду
+        if (_wcsicmp(Command, L"run") == 0 || _wcsicmp(Command, L"1") == 0) {
+            printf("Executing kernel-mode samples...\n");
+            DoKernelModeSamples();
+            printf("Samples execution completed.\n");
+
+        }
+        else if (_wcsicmp(Command, L"exit") == 0 || _wcsicmp(Command, L"2") == 0) {
+            printf("Exiting...\n");
+            break;
+
+        }
+        else if (wcslen(Command) == 0) {
+            // Пустая строка - продолжаем цикл
+            continue;
+
+        }
+        else {
+            printf("Unknown command: %ws\n", Command);
+            printf("Type 'run' or 'exit'\n");
+        }
+    }
+
     // Выгружает драйвер - удаляет службу и тд
+    printf("Unloading driver...\n");
     UtilUnloadDriver(g_Driver, NULL, DRIVER_NAME);
+    printf("Driver unloaded. Goodbye!\n");
 }
 
 
@@ -182,28 +213,8 @@ Return Value:
 --*/
 {
     switch (Sample) {
-        case KERNELMODE_SAMPLE_PRE_NOTIFICATION_BLOCK:
-            return L"Pre-Notification Block Sample";
-        case KERNELMODE_SAMPLE_PRE_NOTIFICATION_BYPASS:
-            return L"Pre-Notification Bypass Sample";
-        case KERNELMODE_SAMPLE_POST_NOTIFICATION_OVERRIDE_SUCCESS:
-            return L"Post-Notification Override Success Sample";
-        case KERNELMODE_SAMPLE_POST_NOTIFICATION_OVERRIDE_ERROR:
-            return L"Post-Notification Override Error Sample";
-        case KERNELMODE_SAMPLE_TRANSACTION_REPLAY:
-            return L"Transaction Replay Sample";
-        case KERNELMODE_SAMPLE_TRANSACTION_ENLIST:
-            return L"Transaction Enlist Sample";
-        case KERNELMODE_SAMPLE_MULTIPLE_ALTITUDE_BLOCK_DURING_PRE:
-            return L"Multiple Altitude Block During Pre Sample";
-        case KERNELMODE_SAMPLE_MULTIPLE_ALTITUDE_INTERNAL_INVOCATION:
-            return L"Multiple Altitude Internal Invocation Sample";
-        case KERNELMODE_SAMPLE_SET_CALL_CONTEXT:
-            return L"Set Call Context Sample";
-        case KERNELMODE_SAMPLE_SET_OBJECT_CONTEXT:
-            return L"Set Object Context Sample";
-        case KERNELMODE_SAMPLE_VERSION_CREATE_OPEN_V1:
-            return L"Create Open V1 Sample";
+        case KERNELMODE_SAMPLE_PRE_NOTIFICATION_LOG:
+            return L"Pre-Notification Log Sample";
         default:
             return L"Unsupported Kernel Mode Sample";
     }

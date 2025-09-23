@@ -22,6 +22,9 @@ Environment:
 
 #include "regfltr.h"
 
+LARGE_INTEGER g_RegistryCallbackCookie = { 0 };
+BOOLEAN g_IsCallbackRegistered = FALSE;
+
 
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD     DeviceUnload;
@@ -200,6 +203,9 @@ Return value:
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DeviceControl;
     DriverObject->DriverUnload                         = DeviceUnload;
 
+    g_IsCallbackRegistered = FALSE;
+    g_RegistryCallbackCookie.QuadPart = 0;
+
     //
     // Create a link in the Win32 namespace.
     //
@@ -225,17 +231,6 @@ Return value:
     //
     
     DetectOSVersion();
-
-    //
-    // Set up KTM resource manager and pass in RMCallback as our
-    // callback routine.
-    //
-
-    Status = CreateKTMResourceManager(RMCallback, NULL);
-
-    if (NT_SUCCESS(Status)) {
-        g_RMCreated = TRUE;
-    }
 
     //
     // Initialize the callback context list
@@ -394,14 +389,6 @@ Return Value:
         Status = DoCallbackSamples(DeviceObject, Irp);
         break;
 
-    case IOCTL_REGISTER_CALLBACK:
-        Status = RegisterCallback(DeviceObject, Irp);
-        break;
-
-    case IOCTL_UNREGISTER_CALLBACK:
-        Status = UnRegisterCallback(DeviceObject, Irp);
-        break;
-
     case IOCTL_GET_CALLBACK_VERSION:
         Status = GetCallbackVersion(DeviceObject, Irp);
         break;
@@ -446,13 +433,17 @@ Return Value:
 
 --*/
 {
+
+
+    // Снимаем callback если он был зарегистрирован
+    if (g_IsCallbackRegistered) {
+        CmUnRegisterCallback(g_RegistryCallbackCookie);
+        InfoPrint("Unregistered callback with cookie: 0x%llx",
+            g_RegistryCallbackCookie.QuadPart);
+        g_IsCallbackRegistered = FALSE;
+    }
+
     UNICODE_STRING  DosDevicesLinkName;
-
-    //
-    // Clean up the KTM data structures
-    //
-
-    DeleteKTMResourceManager();
     
     //
     // Delete the link from our device name to a name in the Win32 namespace.

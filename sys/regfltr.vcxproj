@@ -160,17 +160,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Capture.c" />
-    <ClCompile Include="Context.c" />
     <ClCompile Include="driver.c" />
-    <ClCompile Include="MultiAlt.c" />
-    <ClCompile Include="Post.c" />
     <ClCompile Include="Pre.c" />
     <ClCompile Include="regfltr.c" />
-    <ClCompile Include="TxR.c" />
-    <ClCompile Include="TxRUtil.c" />
     <ClCompile Include="Util.c" />
-    <ClCompile Include="Version.c" />
     <ResourceCompile Include="regfltr.rc" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
