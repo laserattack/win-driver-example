@@ -126,12 +126,59 @@ LoadImageNotifyRoutine(
 {
     UNREFERENCED_PARAMETER(ImageInfo);
 
-    if (FullImageName != NULL) {
-        // Логируем: PID + путь к загруженному модулю
-        InfoPrint("[PID: %d] Callback: Module: %wZ", ProcessId, FullImageName);
+    // --- Получение и форматирование времени ---
+    LARGE_INTEGER SystemTime, LocalTime;
+    TIME_FIELDS TimeFields;
+    CHAR TimeBuffer[64] = { 0 };
+
+    KeQuerySystemTime(&SystemTime);
+    ExSystemTimeToLocalTime(&SystemTime, &LocalTime);
+    RtlTimeToTimeFields(&LocalTime, &TimeFields);
+
+    _snprintf_s(TimeBuffer, sizeof(TimeBuffer), _TRUNCATE,
+        "%04d-%02d-%02d %02d:%02d:%02d.%06d",
+        TimeFields.Year,
+        TimeFields.Month,
+        TimeFields.Day,
+        TimeFields.Hour,
+        TimeFields.Minute,
+        TimeFields.Second,
+        TimeFields.Milliseconds * 1000);
+
+    // --- Получение имени процесса по PID ---
+    CHAR ProcessName[16] = { 0 };
+    PEPROCESS Process = NULL;
+
+    if (NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
+        PCHAR ImageName = (PCHAR)((ULONG_PTR)Process + 0x5a8);
+
+        __try {
+            if (ImageName != NULL) {
+                strncpy(ProcessName, ImageName, 15);
+                ProcessName[15] = '\0';
+            }
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            strcpy(ProcessName, "Unknown");
+        }
+
+        ObDereferenceObject(Process);
     }
     else {
-        InfoPrint("[PID: %d] Callback: Module: unknown", ProcessId);
+        strcpy(ProcessName, "Unknown");
+    }
+
+    if (FullImageName != NULL) {
+        InfoPrint("[%s] [PID: %d, Process: %s] Callback: Module: %wZ",
+            TimeBuffer,
+            ProcessId,
+            ProcessName,
+            FullImageName);
+    }
+    else {
+        InfoPrint("[%s] [PID: %d, Process: %s] Callback: Module: <unknown>",
+            TimeBuffer,
+            ProcessId,
+            ProcessName);
     }
 }
 
