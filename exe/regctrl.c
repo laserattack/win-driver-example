@@ -28,6 +28,9 @@ BOOL
 ReadDatabase();
 
 VOID
+UpdateDb(WCHAR* Json);
+
+VOID
 DoKernelModeSamples();
 
 LPCWSTR 
@@ -72,9 +75,10 @@ wmain(
     while (TRUE) {
         printf("\n");
         printf("Available commands:\n");
-        printf("1. exit    - Unload driver and exit\n");
-        printf("2. toggle  - Toggle notify\n");
-        printf("3. update  - Update database\n");
+        printf("1. exit              - Unload driver and exit\n");
+        printf("2. toggle            - Toggle notify\n");
+        printf("3. update            - Update database\n");
+        printf("4. json <valid json> - Put new json in db registry key\n");
         printf("Enter command: ");
 
         // Читаем команду от пользователя
@@ -93,6 +97,11 @@ wmain(
         else if (_wcsicmp(Command, L"toggle") == 0 || _wcsicmp(Command, L"2") == 0) {
             printf("Sending...\n");
             DoKernelModeSamples();
+            continue;
+        }
+        else if (_wcsnicmp(Command, L"json ", 5) == 0) {
+            printf("Processing JSON command...\n");
+            UpdateDb(Command+5);
             continue;
         }
         else if (_wcsicmp(Command, L"update") == 0 || _wcsicmp(Command, L"3") == 0) {
@@ -115,6 +124,59 @@ wmain(
     printf("Driver unloaded. Goodbye!\n");
 }
 
+VOID UpdateDb(WCHAR* Json) {
+    wprintf(L"JSON received: %s\n", Json);
+
+    HKEY hKey = NULL;
+    LONG result;
+    DWORD disposition;
+
+    // Путь в реестре
+    WCHAR valueNameStr[] = L"Database";
+
+    // Создаем/открываем ключ в реестре
+    result = RegCreateKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SOFTWARE\\Regfltr",
+        0,
+        NULL,
+        REG_OPTION_NON_VOLATILE,
+        KEY_WRITE,
+        NULL,
+        &hKey,
+        &disposition
+    );
+
+    if (result != ERROR_SUCCESS) {
+        wprintf(L"Failed to create/open registry key. Error: %d\n", result);
+        return;
+    }
+
+    // Записываем JSON строку в значение реестра
+    result = RegSetValueExW(
+        hKey,
+        valueNameStr,
+        0,
+        REG_SZ,
+        (const BYTE*)Json,
+        (DWORD)((wcslen(Json) + 1) * sizeof(WCHAR))  // Явное преобразование в DWORD
+    );
+
+    if (result == ERROR_SUCCESS) {
+        if (disposition == REG_CREATED_NEW_KEY) {
+            wprintf(L"Successfully created new key and stored JSON in registry\n");
+        } else {
+            wprintf(L"Successfully updated existing key with new JSON\n");
+        }
+    } else {
+        wprintf(L"Failed to write JSON to registry. Error: %d\n", result);
+    }
+
+    // Закрываем ключ
+    if (hKey != NULL) {
+        RegCloseKey(hKey);
+    }
+}
 
 BOOL
 GetCallbackVersion(
