@@ -74,34 +74,6 @@ UtilLoadDriver(
     _In_ LPTSTR szWin32DeviceName,
     _Out_ HANDLE *pDriver
     )
-/*++
-
-Routine Description:
-
-    This routine uses the Service Control Manager APIs to create an entry 
-    for a standalone driver. It then opens a handle to the driver. 
-    The driver is assumed to be in the current directory.
-
-    NOTE: This routine creates an entry for a standalone driver. If this
-    is modified for use with a driver that requires a Tag, Group, and/or 
-    Dependencies, it may be necessary to query the registry for existing 
-    driver information (in order to determine a unique Tag, etc.).
-    
-Arguments:
-
-    szDriverName - name of the driver (no extension)
-
-    szDriverFileName - name of driver (with extension)
-
-    szWin32DeviceName - Name of driver (no extension) prefixed with \\.\
-
-    pDriver - pointer to a variable that receives the handle to the driver
-
-Return Value:
-
-    TRUE if driver is loaded successfully.
-
---*/
 {
     BOOL ReturnValue = FALSE;
     TCHAR* pPathSeparator;

@@ -58,6 +58,11 @@ Environment:
                __VA_ARGS__)
 
 
+typedef struct _DB_ELEMENT {
+    char ObjectName[256];
+    int Level;
+} DB_ELEMENT, *PDB_ELEMENT;
+
 extern LARGE_INTEGER g_RegistryCallbackCookie;
 extern BOOLEAN g_IsCallbackRegistered;
 extern BOOLEAN g_IsImageNotifyRegistered;
@@ -65,6 +70,8 @@ extern BOOLEAN g_IsImageNotifyRegistered;
 extern HANDLE g_hLogFile;
 extern ERESOURCE g_LogFileLock;
 extern BOOLEAN g_LogFileInitialized;
+
+extern PDB_ELEMENT db_elements;
 
 //
 // The root key used in the samples
@@ -227,6 +234,23 @@ EX_CALLBACK_FUNCTION Callback;
 //
 // The samples and their corresponding callback helper methods
 //
+
+
+
+NTSTATUS read_registry_value(
+    _In_ PUNICODE_STRING RegistryPath,
+    _In_ PUNICODE_STRING ValueName,
+    _Out_ PVOID* Buffer,
+    _Out_ PSIZE_T DataSize
+);
+
+PDB_ELEMENT parse_json_to_db_elements(
+    _In_ PCHAR json_str,
+    _Out_ PULONG count
+);
+
+int isdigit(int c);
+int atoi(const char* str);
 
 NTSTATUS 
 CallbackPreNotificationLog(

@@ -1,11 +1,6 @@
 
 #include "regfltr.h"
 
-typedef struct _DB_ELEMENT {
-    char ObjectName[256];
-    int Level;
-} DB_ELEMENT, *PDB_ELEMENT;
-
 
 LARGE_INTEGER g_RegistryCallbackCookie = { 0 };
 BOOLEAN g_IsCallbackRegistered = FALSE;
@@ -14,6 +9,8 @@ BOOLEAN g_IsImageNotifyRegistered = FALSE;
 HANDLE g_hLogFile = NULL;
 ERESOURCE g_LogFileLock;
 BOOLEAN g_LogFileInitialized = FALSE;
+PDB_ELEMENT db_elements = NULL;
+
 
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD     DeviceUnload;
@@ -178,254 +175,8 @@ VOID WriteLogToFile(_In_ PCSTR LogMessage)
     }
 }
 
-NTSTATUS read_registry_value(
-    _In_ PUNICODE_STRING RegistryPath,
-    _In_ PUNICODE_STRING ValueName,
-    _Out_ PVOID* Buffer,
-    _Out_ PSIZE_T DataSize
-) {
-    NTSTATUS status = STATUS_SUCCESS;
-    HANDLE hKey = NULL;
-    OBJECT_ATTRIBUTES objAttr;
-    KEY_VALUE_PARTIAL_INFORMATION* keyValueInfo = NULL;
-    ULONG resultLength = 0;
-
-    // Инициализируем атрибуты объекта
-    InitializeObjectAttributes(&objAttr,
-                             RegistryPath,
-                             OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE,
-                             NULL,
-                             NULL);
-
-    // Открываем ключ реестра
-    status = ZwOpenKey(&hKey, KEY_READ, &objAttr);
-    if (!NT_SUCCESS(status)) {
-        InfoPrint("Callback: Cannot open key: 0x%X\n", status);
-        return status;
-    }
-
-    // Получаем размер данных
-    status = ZwQueryValueKey(hKey,
-                           ValueName,
-                           KeyValuePartialInformation,
-                           NULL,
-                           0,
-                           &resultLength);
-
-    if (status != STATUS_BUFFER_TOO_SMALL) {
-        InfoPrint("Callback: Cannot get value size: 0x%X\n", status);
-        ZwClose(hKey);
-        return status;
-    }
-
-    // Выделяем память в пуле ядра
-    keyValueInfo = (KEY_VALUE_PARTIAL_INFORMATION*)
-        ExAllocatePool2(POOL_FLAG_NON_PAGED, resultLength, 'RegD');
-
-    if (!keyValueInfo) {
-        InfoPrint("Callback: Memory allocation failed\n");
-        ZwClose(hKey);
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    // Читаем данные из реестра
-    status = ZwQueryValueKey(hKey,
-                           ValueName,
-                           KeyValuePartialInformation,
-                           keyValueInfo,
-                           resultLength,
-                           &resultLength);
-
-    if (!NT_SUCCESS(status)) {
-        InfoPrint("Callback: Cannot read value: 0x%X\n", status);
-        ExFreePoolWithTag(keyValueInfo, 'RegD');
-        ZwClose(hKey);
-        return status;
-    }
-
-    // Проверяем тип данных
-    if (keyValueInfo->Type != REG_SZ && keyValueInfo->Type != REG_EXPAND_SZ) {
-        InfoPrint("Callback: Invalid registry value type: %lu\n", keyValueInfo->Type);
-        ExFreePoolWithTag(keyValueInfo, 'RegD');
-        ZwClose(hKey);
-        return STATUS_OBJECT_TYPE_MISMATCH;
-    }
-
-    // Выделяем память под буфер для возврата
-    SIZE_T bufferSize = keyValueInfo->DataLength + sizeof(WCHAR);
-    PVOID outputBuffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, 'BufD');
-    
-    if (!outputBuffer) {
-        InfoPrint("Callback: Output buffer allocation failed\n");
-        ExFreePoolWithTag(keyValueInfo, 'RegD');
-        ZwClose(hKey);
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    // Копируем данные
-    RtlCopyMemory(outputBuffer, keyValueInfo->Data, keyValueInfo->DataLength);
-
-    // Добавляем нулевой терминатор
-    PWCHAR stringBuffer = (PWCHAR)outputBuffer;
-    stringBuffer[keyValueInfo->DataLength / sizeof(WCHAR)] = L'\0';
-
-    // Возвращаем результаты
-    *Buffer = outputBuffer;
-    *DataSize = keyValueInfo->DataLength;
-
-    // Освобождаем ресурсы
-    ExFreePoolWithTag(keyValueInfo, 'RegD');
-    ZwClose(hKey);
-
-    return STATUS_SUCCESS;
-}
-
-
-// Простая реализация isdigit для драйвера
-int isdigit(int c) {
-    return (c >= '0' && c <= '9');
-}
-
-// Простая реализация atoi для драйвера
-int atoi(const char* str) {
-    int result = 0;
-    int sign = 1;
-
-    // Пропускаем пробелы
-    while (*str == ' ' || *str == '\t' || *str == '\n') {
-        str++;
-    }
-
-    // Проверяем знак
-    if (*str == '-') {
-        sign = -1;
-        str++;
-    } else if (*str == '+') {
-        str++;
-    }
-
-    // Преобразуем цифры в число
-    while (isdigit(*str)) {
-        result = result * 10 + (*str - '0');
-        str++;
-    }
-
-    return sign * result;
-}
-
-PDB_ELEMENT parse_json_to_db_elements(
-    _In_ PCHAR json_str,
-    _Out_ PULONG count
-) {
-    if (!json_str || !count) {
-        InfoPrint("Callback: [JSON] Error: json_str or count is NULL\n");
-        return NULL;
-    }
-
-    *count = 0;
-    PCHAR ptr = json_str;
-    ULONG element_count = 0;
-
-    // Подсчёт количества кавычек → кол-во строк = кавычки / 2
-    while (*ptr) {
-        if (*ptr == '"') {
-            element_count++;
-        }
-        ptr++;
-    }
-
-    element_count /= 2;
-
-    if (element_count == 0) {
-        InfoPrint("Callback: [JSON] No key-value pairs found\n");
-        return NULL;
-    }
-
-    // Выделение памяти
-    SIZE_T alloc_size = element_count * sizeof(DB_ELEMENT);
-    PDB_ELEMENT elements = (PDB_ELEMENT)ExAllocatePool2(POOL_FLAG_NON_PAGED, alloc_size, 'Json');
-    if (!elements) {
-        InfoPrint("Callback: [JSON] Failed to allocate %zu bytes for %lu elements\n", 
-                  alloc_size, element_count);
-        return NULL;
-    }
-
-    RtlZeroMemory(elements, alloc_size);
-
-    // Парсим JSON
-    ptr = json_str;
-    ULONG index = 0;
-    BOOLEAN in_string = FALSE;
-    CHAR current_key[256] = {0};
-    ULONG key_index = 0;
-
-    while (*ptr && index < element_count) {
-        if (*ptr == '"' && !in_string) {
-            in_string = TRUE;
-            key_index = 0;
-            RtlZeroMemory(current_key, sizeof(current_key));
-        }
-        else if (*ptr == '"' && in_string) {
-            in_string = FALSE;
-            current_key[key_index] = '\0'; // Завершаем строку
-
-            NTSTATUS copyStatus = RtlStringCbCopyNA(
-                elements[index].ObjectName,
-                sizeof(elements[index].ObjectName),
-                current_key,
-                key_index
-            );
-
-            if (!NT_SUCCESS(copyStatus)) {
-                InfoPrint("Callback: [JSON] Failed to copy key '%s' (status: 0x%X)\n", 
-                          current_key, copyStatus);
-                ExFreePoolWithTag(elements, 'Json');
-                return NULL;
-            }
-        }
-        else if (in_string) {
-            if (key_index < sizeof(current_key) - 1) {
-                current_key[key_index++] = *ptr;
-            } else {
-                InfoPrint("Callback: [JSON] Key too long, truncating\n");
-            }
-        }
-        else if ((*ptr >= '0' && *ptr <= '9') && key_index > 0) {
-            // Парсим число вручную (без atoi и strlen!)
-            ULONG value = 0;
-
-            while (*ptr >= '0' && *ptr <= '9') {
-                value = value * 10 + (*ptr - '0');
-                ptr++;
-            }
-
-            elements[index].Level = value;
-
-            index++;
-            key_index = 0; // сбрасываем ключ
-            RtlZeroMemory(current_key, sizeof(current_key));
-
-            // Важно: ptr уже указывает за последнюю цифру,
-            // но цикл ниже сделает ptr++, поэтому откатываем на 1 назад
-            ptr--; 
-        }
-
-        ptr++;
-    }
-
-    *count = index;
-
-    if (index == 0) {
-        InfoPrint("Callback: [JSON] Warning: No valid key-value pairs were parsed!\n");
-        ExFreePoolWithTag(elements, 'Json');
-        return NULL;
-    }
-
-    return elements;
-}
-
-
-NTSTATUS test_read_db() {
+// TODO: Если база уже заполнена, то надо зафришить ее сначала, а потом уже заполнять
+NTSTATUS read_db() {
     NTSTATUS status;
     PVOID buffer = NULL;
     SIZE_T dataSize = 0;
@@ -447,7 +198,7 @@ NTSTATUS test_read_db() {
 
         // Данные в буфере - это Unicode строка (WCHAR)
         PWCHAR unicodeString = (PWCHAR)buffer;
-        
+
         // Если нужно преобразовать в ANSI для парсинга
         ANSI_STRING ansiString;
         UNICODE_STRING unicodeStr;
@@ -463,22 +214,22 @@ NTSTATUS test_read_db() {
             InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
 
             ULONG count = 0;
-            PDB_ELEMENT elements = parse_json_to_db_elements(
+            db_elements = parse_json_to_db_elements(
                 ansiString.Buffer,
                 &count
             );
 
-            if (elements) {
+            if (db_elements) {
                 InfoPrint("Callback: Parsed %lu database elements:\n", count);
                 for (ULONG i = 0; i < count; i++) {
                     InfoPrint("Callback: [%lu] ObjectName: '%s', Level: %lu\n",
                               i,
-                              elements[i].ObjectName,
-                              elements[i].Level);
+                              db_elements[i].ObjectName,
+                              db_elements[i].Level);
                 }
 
                 // Освобождаем элементы
-                ExFreePoolWithTag(elements, 'Json');
+                ExFreePoolWithTag(db_elements, 'Json');
             } else {
                 InfoPrint("Callback: Failed to parse JSON\n");
             }
@@ -565,7 +316,7 @@ DriverEntry (
 
     PreNotificationLogSample();
     InitializeLogFile();
-    test_read_db();
+    read_db();
 
     //
     // Create a link in the Win32 namespace.
