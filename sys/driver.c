@@ -175,7 +175,6 @@ VOID WriteLogToFile(_In_ PCSTR LogMessage)
     }
 }
 
-// TODO: Если база уже заполнена, то надо зафришить ее сначала, а потом уже заполнять
 NTSTATUS read_db() {
     NTSTATUS status;
     PVOID buffer = NULL;
@@ -185,6 +184,13 @@ NTSTATUS read_db() {
     UNICODE_STRING valueName;
     WCHAR registryPathStr[] = L"\\Registry\\Machine\\SOFTWARE\\Regfltr";
     WCHAR valueNameStr[] = L"Database";
+
+    // Если уже заполнена база данных, то надо сначала ее очистить
+    if (db_elements != NULL) {
+        InfoPrint("Callback: Freeing existing database elements\n");
+        ExFreePoolWithTag(db_elements, 'Json');
+        db_elements = NULL;
+    }
 
     // Инициализируем UNICODE_STRING для пути реестра
     RtlInitUnicodeString(&registryPath, registryPathStr);
