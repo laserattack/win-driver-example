@@ -1,25 +1,3 @@
-/*++
-Copyright (c) Microsoft Corporation.  All rights reserved.
-
-    THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
-    KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
-    PURPOSE.
-
-Module Name:
-
-    util.c
-
-Abstract: 
-
-    Utility routines for the sample driver.
-
-Environment:
-
-    Kernel mode only
-
---*/
-
 
 #include "regfltr.h"
 
