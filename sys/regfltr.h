@@ -71,7 +71,9 @@ extern HANDLE g_hLogFile;
 extern ERESOURCE g_LogFileLock;
 extern BOOLEAN g_LogFileInitialized;
 
-extern PDB_ELEMENT db_elements;
+extern PDB_ELEMENT g_db_elements;
+extern ERESOURCE g_db_elementsLock;
+
 
 //
 // The root key used in the samples

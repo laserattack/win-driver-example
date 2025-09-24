@@ -9,8 +9,9 @@ BOOLEAN g_IsImageNotifyRegistered = FALSE;
 HANDLE g_hLogFile = NULL;
 ERESOURCE g_LogFileLock;
 BOOLEAN g_LogFileInitialized = FALSE;
-PDB_ELEMENT db_elements = NULL;
 
+PDB_ELEMENT g_db_elements = NULL;
+ERESOURCE g_db_elementsLock;
 
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD     DeviceUnload;
@@ -185,12 +186,16 @@ NTSTATUS read_db() {
     WCHAR registryPathStr[] = L"\\Registry\\Machine\\SOFTWARE\\Regfltr";
     WCHAR valueNameStr[] = L"Database";
 
+    ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
+
     // Если уже заполнена база данных, то надо сначала ее очистить
-    if (db_elements != NULL) {
+    if (g_db_elements != NULL) {
         InfoPrint("Callback: Freeing existing database elements\n");
-        ExFreePoolWithTag(db_elements, 'Json');
-        db_elements = NULL;
+        ExFreePoolWithTag(g_db_elements, 'Json');
+        g_db_elements = NULL;
     }
+
+    ExReleaseResourceLite(&g_db_elementsLock);
 
     // Инициализируем UNICODE_STRING для пути реестра
     RtlInitUnicodeString(&registryPath, registryPathStr);
@@ -217,31 +222,34 @@ NTSTATUS read_db() {
         // Преобразуем в ANSI
         status = RtlUnicodeStringToAnsiString(&ansiString, &unicodeStr, TRUE);
         if (NT_SUCCESS(status)) {
+
+            ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
+
             InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
 
             ULONG count = 0;
-            db_elements = parse_json_to_db_elements(
+            g_db_elements = parse_json_to_db_elements(
                 ansiString.Buffer,
                 &count
             );
 
-            if (db_elements) {
+            if (g_db_elements) {
                 InfoPrint("Callback: Parsed %lu database elements:\n", count);
                 for (ULONG i = 0; i < count; i++) {
                     InfoPrint("Callback: [%lu] ObjectName: '%s', Level: %lu\n",
                               i,
-                              db_elements[i].ObjectName,
-                              db_elements[i].Level);
+                              g_db_elements[i].ObjectName,
+                              g_db_elements[i].Level);
                 }
-
-                // Освобождаем элементы
-                ExFreePoolWithTag(db_elements, 'Json');
             } else {
                 InfoPrint("Callback: Failed to parse JSON\n");
             }
 
             // Освобождаем ANSI строку
             RtlFreeAnsiString(&ansiString);
+
+            // Освобождаем мьютекс
+            ExReleaseResourceLite(&g_db_elementsLock);
         } else {
             InfoPrint("Callback: Failed to convert to ANSI: 0x%X\n", status);
         }
@@ -322,6 +330,9 @@ DriverEntry (
 
     PreNotificationLogSample();
     InitializeLogFile();
+
+    // Инициализация мьютекса для базы правил
+    ExInitializeResourceLite(&g_db_elementsLock);
     read_db();
 
     //
@@ -487,6 +498,13 @@ DeviceUnload (
         ExDeleteResourceLite(&g_LogFileLock);
         g_LogFileInitialized = FALSE;
         InfoPrint("Log file closed callback");
+    }
+
+    // Освобождаем базу правил
+    if (g_db_elements != NULL) {
+        ExFreePoolWithTag(g_db_elements, 'Json');
+        ExDeleteResourceLite(&g_db_elementsLock);
+        InfoPrint("Elements db free and mutex deleted callback");
     }
 
     UNICODE_STRING  DosDevicesLinkName;
