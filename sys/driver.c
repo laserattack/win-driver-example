@@ -357,7 +357,7 @@ DeviceControl (
     IrpStack = IoGetCurrentIrpStackLocation(Irp);
     Ioctl = IrpStack->Parameters.DeviceIoControl.IoControlCode;
 
-    // ioctl route
+    // NOTE: ioctl routing
     switch (Ioctl)
     {
 
