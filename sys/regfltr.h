@@ -237,7 +237,7 @@ EX_CALLBACK_FUNCTION Callback;
 // The samples and their corresponding callback helper methods
 //
 
-
+NTSTATUS read_db();
 
 NTSTATUS read_registry_value(
     _In_ PUNICODE_STRING RegistryPath,

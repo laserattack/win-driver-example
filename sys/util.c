@@ -28,6 +28,93 @@ FAST_MUTEX g_CallbackCtxListLock;
 LIST_ENTRY g_CallbackCtxListHead;
 USHORT g_NumCallbackCtxListEntries;
 
+NTSTATUS read_db() {
+    NTSTATUS status;
+    PVOID buffer = NULL;
+    SIZE_T dataSize = 0;
+
+    UNICODE_STRING registryPath;
+    UNICODE_STRING valueName;
+    WCHAR registryPathStr[] = L"\\Registry\\Machine\\SOFTWARE\\Regfltr";
+    WCHAR valueNameStr[] = L"Database";
+
+    ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
+
+    // Если уже заполнена база данных, то надо сначала ее очистить
+    if (g_db_elements != NULL) {
+        InfoPrint("Callback: Freeing existing database elements\n");
+        ExFreePoolWithTag(g_db_elements, 'Json');
+        g_db_elements = NULL;
+    }
+
+    ExReleaseResourceLite(&g_db_elementsLock);
+
+    // Инициализируем UNICODE_STRING для пути реестра
+    RtlInitUnicodeString(&registryPath, registryPathStr);
+    RtlInitUnicodeString(&valueName, valueNameStr);
+
+    // Читаем значение из реестра
+    status = read_registry_value(&registryPath, &valueName, &buffer, &dataSize);
+
+    if (NT_SUCCESS(status) && buffer) {
+        InfoPrint("Callback: Registry value size: %zu bytes\n", dataSize);
+
+        // Данные в буфере - это Unicode строка (WCHAR)
+        PWCHAR unicodeString = (PWCHAR)buffer;
+
+        // Если нужно преобразовать в ANSI для парсинга
+        ANSI_STRING ansiString;
+        UNICODE_STRING unicodeStr;
+
+        // Создаем UNICODE_STRING из буфера
+        unicodeStr.Buffer = unicodeString;
+        unicodeStr.Length = (USHORT)dataSize;
+        unicodeStr.MaximumLength = (USHORT)dataSize + sizeof(WCHAR);
+
+        // Преобразуем в ANSI
+        status = RtlUnicodeStringToAnsiString(&ansiString, &unicodeStr, TRUE);
+        if (NT_SUCCESS(status)) {
+
+            ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
+
+            InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
+
+            ULONG count = 0;
+            g_db_elements = parse_json_to_db_elements(
+                ansiString.Buffer,
+                &count
+            );
+
+            if (g_db_elements) {
+                InfoPrint("Callback: Parsed %lu database elements:\n", count);
+                for (ULONG i = 0; i < count; i++) {
+                    InfoPrint("Callback: [%lu] ObjectName: '%s', Level: %lu\n",
+                              i,
+                              g_db_elements[i].ObjectName,
+                              g_db_elements[i].Level);
+                }
+            } else {
+                InfoPrint("Callback: Failed to parse JSON\n");
+            }
+
+            // Освобождаем ANSI строку
+            RtlFreeAnsiString(&ansiString);
+
+            // Освобождаем мьютекс
+            ExReleaseResourceLite(&g_db_elementsLock);
+        } else {
+            InfoPrint("Callback: Failed to convert to ANSI: 0x%X\n", status);
+        }
+
+        // Освобождаем память
+        ExFreePoolWithTag(buffer, 'BufD');
+    } else {
+        InfoPrint("Callback: Failed to read registry value: 0x%X\n", status);
+    }
+
+    return status;
+}
+
 NTSTATUS read_registry_value(
     _In_ PUNICODE_STRING RegistryPath,
     _In_ PUNICODE_STRING ValueName,
