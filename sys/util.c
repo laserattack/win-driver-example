@@ -112,13 +112,10 @@ VOID get_level_by_object_name_char(
         return;
     }
 
-    // Захватываем мьютекс для разделяемого доступа (чтение)
     ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
 
     __try {
-        // Ищем объект в базе данных
         for (ULONG i = 0; i < g_db_elements_count; i++) {
-            // Сравниваем строки (без учета регистра)
             if (_stricmp(g_db_elements[i].ObjectName, object_name) == 0) {
                 *level = g_db_elements[i].Level;
                 break;
@@ -126,7 +123,6 @@ VOID get_level_by_object_name_char(
         }
     }
     __finally {
-        // Всегда освобождаем мьютекс
         ExReleaseResourceLite(&g_db_elementsLock);
     }
 
