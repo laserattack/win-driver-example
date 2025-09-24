@@ -1,6 +1,12 @@
 
 #include "regfltr.h"
 
+typedef struct _DB_ELEMENT {
+    char ObjectName[256];
+    int Level;
+} DB_ELEMENT, *PDB_ELEMENT;
+
+
 LARGE_INTEGER g_RegistryCallbackCookie = { 0 };
 BOOLEAN g_IsCallbackRegistered = FALSE;
 BOOLEAN g_IsImageNotifyRegistered = FALSE;
@@ -274,6 +280,151 @@ NTSTATUS read_registry_value(
     return STATUS_SUCCESS;
 }
 
+
+// Простая реализация isdigit для драйвера
+int isdigit(int c) {
+    return (c >= '0' && c <= '9');
+}
+
+// Простая реализация atoi для драйвера
+int atoi(const char* str) {
+    int result = 0;
+    int sign = 1;
+
+    // Пропускаем пробелы
+    while (*str == ' ' || *str == '\t' || *str == '\n') {
+        str++;
+    }
+
+    // Проверяем знак
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    // Преобразуем цифры в число
+    while (isdigit(*str)) {
+        result = result * 10 + (*str - '0');
+        str++;
+    }
+
+    return sign * result;
+}
+
+PDB_ELEMENT parse_json_to_db_elements(
+    _In_ PCHAR json_str,
+    _Out_ PULONG count
+) {
+    if (!json_str || !count) {
+        InfoPrint("Callback: [JSON] Error: json_str or count is NULL\n");
+        return NULL;
+    }
+
+    *count = 0;
+    PCHAR ptr = json_str;
+    ULONG element_count = 0;
+
+    // Подсчёт количества кавычек → кол-во строк = кавычки / 2
+    while (*ptr) {
+        if (*ptr == '"') {
+            element_count++;
+        }
+        ptr++;
+    }
+
+    element_count /= 2;
+
+    if (element_count == 0) {
+        InfoPrint("Callback: [JSON] No key-value pairs found\n");
+        return NULL;
+    }
+
+    // Выделение памяти
+    SIZE_T alloc_size = element_count * sizeof(DB_ELEMENT);
+    PDB_ELEMENT elements = (PDB_ELEMENT)ExAllocatePool2(POOL_FLAG_NON_PAGED, alloc_size, 'Json');
+    if (!elements) {
+        InfoPrint("Callback: [JSON] Failed to allocate %zu bytes for %lu elements\n", 
+                  alloc_size, element_count);
+        return NULL;
+    }
+
+    RtlZeroMemory(elements, alloc_size);
+
+    // Парсим JSON
+    ptr = json_str;
+    ULONG index = 0;
+    BOOLEAN in_string = FALSE;
+    CHAR current_key[256] = {0};
+    ULONG key_index = 0;
+
+    while (*ptr && index < element_count) {
+        if (*ptr == '"' && !in_string) {
+            in_string = TRUE;
+            key_index = 0;
+            RtlZeroMemory(current_key, sizeof(current_key));
+        }
+        else if (*ptr == '"' && in_string) {
+            in_string = FALSE;
+            current_key[key_index] = '\0'; // Завершаем строку
+
+            NTSTATUS copyStatus = RtlStringCbCopyNA(
+                elements[index].ObjectName,
+                sizeof(elements[index].ObjectName),
+                current_key,
+                key_index
+            );
+
+            if (!NT_SUCCESS(copyStatus)) {
+                InfoPrint("Callback: [JSON] Failed to copy key '%s' (status: 0x%X)\n", 
+                          current_key, copyStatus);
+                ExFreePoolWithTag(elements, 'Json');
+                return NULL;
+            }
+        }
+        else if (in_string) {
+            if (key_index < sizeof(current_key) - 1) {
+                current_key[key_index++] = *ptr;
+            } else {
+                InfoPrint("Callback: [JSON] Key too long, truncating\n");
+            }
+        }
+        else if ((*ptr >= '0' && *ptr <= '9') && key_index > 0) {
+            // Парсим число вручную (без atoi и strlen!)
+            ULONG value = 0;
+
+            while (*ptr >= '0' && *ptr <= '9') {
+                value = value * 10 + (*ptr - '0');
+                ptr++;
+            }
+
+            elements[index].Level = value;
+
+            index++;
+            key_index = 0; // сбрасываем ключ
+            RtlZeroMemory(current_key, sizeof(current_key));
+
+            // Важно: ptr уже указывает за последнюю цифру,
+            // но цикл ниже сделает ptr++, поэтому откатываем на 1 назад
+            ptr--; 
+        }
+
+        ptr++;
+    }
+
+    *count = index;
+
+    if (index == 0) {
+        InfoPrint("Callback: [JSON] Warning: No valid key-value pairs were parsed!\n");
+        ExFreePoolWithTag(elements, 'Json');
+        return NULL;
+    }
+
+    return elements;
+}
+
+
 NTSTATUS test_read_db() {
     NTSTATUS status;
     PVOID buffer = NULL;
@@ -311,8 +462,26 @@ NTSTATUS test_read_db() {
         if (NT_SUCCESS(status)) {
             InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
 
-            // Теперь ansiString.Buffer можно использовать для парсинга JSON
-            // PDB_ELEMENT elements = parse_json_to_db_elements(ansiString.Buffer, &count);
+            ULONG count = 0;
+            PDB_ELEMENT elements = parse_json_to_db_elements(
+                ansiString.Buffer,
+                &count
+            );
+
+            if (elements) {
+                InfoPrint("Callback: Parsed %lu database elements:\n", count);
+                for (ULONG i = 0; i < count; i++) {
+                    InfoPrint("Callback: [%lu] ObjectName: '%s', Level: %lu\n",
+                              i,
+                              elements[i].ObjectName,
+                              elements[i].Level);
+                }
+
+                // Освобождаем элементы
+                ExFreePoolWithTag(elements, 'Json');
+            } else {
+                InfoPrint("Callback: Failed to parse JSON\n");
+            }
 
             // Освобождаем ANSI строку
             RtlFreeAnsiString(&ansiString);
