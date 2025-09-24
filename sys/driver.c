@@ -172,6 +172,164 @@ VOID WriteLogToFile(_In_ PCSTR LogMessage)
     }
 }
 
+NTSTATUS read_registry_value(
+    _In_ PUNICODE_STRING RegistryPath,
+    _In_ PUNICODE_STRING ValueName,
+    _Out_ PVOID* Buffer,
+    _Out_ PSIZE_T DataSize
+) {
+    NTSTATUS status = STATUS_SUCCESS;
+    HANDLE hKey = NULL;
+    OBJECT_ATTRIBUTES objAttr;
+    KEY_VALUE_PARTIAL_INFORMATION* keyValueInfo = NULL;
+    ULONG resultLength = 0;
+
+    // Инициализируем атрибуты объекта
+    InitializeObjectAttributes(&objAttr,
+                             RegistryPath,
+                             OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE,
+                             NULL,
+                             NULL);
+
+    // Открываем ключ реестра
+    status = ZwOpenKey(&hKey, KEY_READ, &objAttr);
+    if (!NT_SUCCESS(status)) {
+        InfoPrint("Callback: Cannot open key: 0x%X\n", status);
+        return status;
+    }
+
+    // Получаем размер данных
+    status = ZwQueryValueKey(hKey,
+                           ValueName,
+                           KeyValuePartialInformation,
+                           NULL,
+                           0,
+                           &resultLength);
+
+    if (status != STATUS_BUFFER_TOO_SMALL) {
+        InfoPrint("Callback: Cannot get value size: 0x%X\n", status);
+        ZwClose(hKey);
+        return status;
+    }
+
+    // Выделяем память в пуле ядра
+    keyValueInfo = (KEY_VALUE_PARTIAL_INFORMATION*)
+        ExAllocatePool2(POOL_FLAG_NON_PAGED, resultLength, 'RegD');
+    
+    if (!keyValueInfo) {
+        InfoPrint("Callback: Memory allocation failed\n");
+        ZwClose(hKey);
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    // Читаем данные из реестра
+    status = ZwQueryValueKey(hKey,
+                           ValueName,
+                           KeyValuePartialInformation,
+                           keyValueInfo,
+                           resultLength,
+                           &resultLength);
+
+    if (!NT_SUCCESS(status)) {
+        InfoPrint("Callback: Cannot read value: 0x%X\n", status);
+        ExFreePoolWithTag(keyValueInfo, 'RegD');
+        ZwClose(hKey);
+        return status;
+    }
+
+    // Проверяем тип данных
+    if (keyValueInfo->Type != REG_SZ && keyValueInfo->Type != REG_EXPAND_SZ) {
+        InfoPrint("Callback: Invalid registry value type: %lu\n", keyValueInfo->Type);
+        ExFreePoolWithTag(keyValueInfo, 'RegD');
+        ZwClose(hKey);
+        return STATUS_OBJECT_TYPE_MISMATCH;
+    }
+
+    // Выделяем память под буфер для возврата
+    SIZE_T bufferSize = keyValueInfo->DataLength + sizeof(WCHAR);
+    PVOID outputBuffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, 'BufD');
+    
+    if (!outputBuffer) {
+        InfoPrint("Callback: Output buffer allocation failed\n");
+        ExFreePoolWithTag(keyValueInfo, 'RegD');
+        ZwClose(hKey);
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    // Копируем данные
+    RtlCopyMemory(outputBuffer, keyValueInfo->Data, keyValueInfo->DataLength);
+    
+    // Добавляем нулевой терминатор
+    PWCHAR stringBuffer = (PWCHAR)outputBuffer;
+    stringBuffer[keyValueInfo->DataLength / sizeof(WCHAR)] = L'\0';
+
+    // Возвращаем результаты
+    *Buffer = outputBuffer;
+    *DataSize = keyValueInfo->DataLength;
+
+    // Освобождаем ресурсы
+    ExFreePoolWithTag(keyValueInfo, 'RegD');
+    ZwClose(hKey);
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS test_read_db() {
+    NTSTATUS status;
+    PVOID buffer = NULL;
+    SIZE_T dataSize = 0;
+    
+    UNICODE_STRING registryPath;
+    UNICODE_STRING valueName;
+    WCHAR registryPathStr[] = L"\\Registry\\Machine\\SOFTWARE\\Regfltr";
+    WCHAR valueNameStr[] = L"Database";
+
+    // Инициализируем UNICODE_STRING для пути реестра
+    RtlInitUnicodeString(&registryPath, registryPathStr);
+    RtlInitUnicodeString(&valueName, valueNameStr);
+
+    // Читаем значение из реестра
+    status = read_registry_value(&registryPath, &valueName, &buffer, &dataSize);
+    
+    if (NT_SUCCESS(status) && buffer) {
+        InfoPrint("Callback: Registry value size: %zu bytes\n", dataSize);
+
+        // Данные в буфере - это Unicode строка (WCHAR)
+        PWCHAR unicodeString = (PWCHAR)buffer;
+        
+        // Если нужно преобразовать в ANSI для парсинга
+        ANSI_STRING ansiString;
+        UNICODE_STRING unicodeStr;
+        
+        // Создаем UNICODE_STRING из буфера
+        unicodeStr.Buffer = unicodeString;
+        unicodeStr.Length = (USHORT)dataSize;
+        unicodeStr.MaximumLength = (USHORT)dataSize + sizeof(WCHAR);
+        
+        // Преобразуем в ANSI
+        status = RtlUnicodeStringToAnsiString(&ansiString, &unicodeStr, TRUE);
+        if (NT_SUCCESS(status)) {
+            InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
+            
+            // Теперь ansiString.Buffer можно использовать для парсинга JSON
+            // PDB_ELEMENT elements = parse_json_to_db_elements(ansiString.Buffer, &count);
+            
+            // Освобождаем ANSI строку
+            RtlFreeAnsiString(&ansiString);
+        } else {
+            InfoPrint("Callback: Failed to convert to ANSI: 0x%X\n", status);
+        }
+
+        // Освобождаем память
+        ExFreePoolWithTag(buffer, 'BufD');
+    } else {
+        InfoPrint("Callback: Failed to read registry value: 0x%X\n", status);
+    }
+
+    return status;
+}
+
+
 NTSTATUS
 DriverEntry (
     _In_ PDRIVER_OBJECT  DriverObject,
@@ -238,6 +396,7 @@ DriverEntry (
 
     PreNotificationLogSample();
     InitializeLogFile();
+    test_read_db();
 
     //
     // Create a link in the Win32 namespace.
