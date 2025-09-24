@@ -24,6 +24,9 @@ ULONG g_MinorVersion;
 BOOL
 GetCallbackVersion();
 
+BOOL
+ReadDatabase();
+
 VOID
 DoKernelModeSamples();
 
@@ -65,13 +68,13 @@ wmain(
         InfoPrint("Callback version is %u.%u", g_MajorVersion, g_MinorVersion);
     }
 
-
     // Основной цикл программы
     while (TRUE) {
         printf("\n");
         printf("Available commands:\n");
         printf("1. exit    - Unload driver and exit\n");
         printf("2. toggle  - Toggle notify\n");
+        printf("3. update  - Update database\n");
         printf("Enter command: ");
 
         // Читаем команду от пользователя
@@ -90,6 +93,11 @@ wmain(
         else if (_wcsicmp(Command, L"toggle") == 0 || _wcsicmp(Command, L"2") == 0) {
             printf("Sending...\n");
             DoKernelModeSamples();
+            continue;
+        }
+        else if (_wcsicmp(Command, L"update") == 0 || _wcsicmp(Command, L"3") == 0) {
+            printf("Sending...\n");
+            ReadDatabase();
             continue;
         }
         else if (wcslen(Command) == 0) {
@@ -111,14 +119,6 @@ wmain(
 BOOL
 GetCallbackVersion(
     ) 
-/*++
-
-Routine Description:
-
-    This routine asks the driver for the registry callback version and
-    stores it in the global variables g_MajorVersion and g_MinorVersion.
-
---*/
 {
 
     DWORD BytesReturned = 0;
@@ -146,17 +146,34 @@ Routine Description:
 
 }
 
+BOOL
+ReadDatabase(
+    )
+{
+
+    DWORD BytesReturned = 0;
+    BOOL Result;
+    
+    Result = DeviceIoControl(g_Driver,
+                             IOCTL_READ_DB,
+                             NULL,
+                             0,
+                             NULL,
+                             0,
+                             &BytesReturned,
+                             NULL);
+
+    if (Result != TRUE) {
+        ErrorPrint("DeviceIoControl for IOCTL_READ_DB failed, error %d\n", GetLastError());
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 VOID
 DoKernelModeSamples(
     ) 
-/*++
-
-Routine Description:
-
-    Tells the driver to run the kernel mode samples and prints out the
-    results.
-
---*/
 {
 
     UINT Index;

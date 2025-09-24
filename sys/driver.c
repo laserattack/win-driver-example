@@ -369,6 +369,10 @@ DeviceControl (
         Status = GetCallbackVersion(DeviceObject, Irp);
         break;
 
+    case IOCTL_READ_DB:
+        read_db(); 
+        break;
+
     default:
         ErrorPrint("Unrecognized ioctl code 0x%x", Ioctl);
     }
