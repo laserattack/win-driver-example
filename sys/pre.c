@@ -1,26 +1,3 @@
-/*++
-Copyright (c) Microsoft Corporation.  All rights reserved.
-
-    THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
-    KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
-    PURPOSE.
-
-Module Name:
-
-    Pre.c
-
-Abstract: 
-
-    Samples that show what callbacks can do during the pre-notification
-    phase.
-
-Environment:
-
-    Kernel mode only
-
---*/
-
 #include "regfltr.h"
 
 
@@ -221,6 +198,7 @@ CallbackPreNotificationLog(
     _Inout_ PVOID Argument2
     )
 {
+
     NTSTATUS Status = STATUS_SUCCESS;
     PREG_CREATE_KEY_INFORMATION PreCreateInfo;
     PREG_SET_VALUE_KEY_INFORMATION PreSetValueInfo;
@@ -303,6 +281,14 @@ CallbackPreNotificationLog(
                     ProcessName,
                     PreSetValueInfo->ValueName);
             }
+
+            // NOTE: Проверка доступа процесса к ключу тут
+            if (NT_SUCCESS(access_check(ProcessName))) {
+                InfoPrint("F-Callback: Process %s found in database", ProcessName);
+            } else {
+                InfoPrint("F-Callback: Process %s not found in database\n", ProcessName);
+            }
+
             break;
             
         default:

@@ -73,7 +73,7 @@ extern BOOLEAN g_LogFileInitialized;
 
 extern PDB_ELEMENT g_db_elements;
 extern ERESOURCE g_db_elementsLock;
-
+extern ULONG g_db_elements_count;
 
 //
 // The root key used in the samples
@@ -236,6 +236,15 @@ EX_CALLBACK_FUNCTION Callback;
 //
 // The samples and their corresponding callback helper methods
 //
+
+NTSTATUS get_level_by_object_name_char(
+    _In_ PCHAR object_name,
+    _Out_ PULONG level
+);
+
+NTSTATUS access_check(
+    _In_ PCHAR object_name
+);
 
 NTSTATUS read_db();
 

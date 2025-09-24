@@ -11,6 +11,7 @@ ERESOURCE g_LogFileLock;
 BOOLEAN g_LogFileInitialized = FALSE;
 
 PDB_ELEMENT g_db_elements = NULL;
+ULONG g_db_elements_count = 0;
 ERESOURCE g_db_elementsLock;
 
 DRIVER_INITIALIZE DriverEntry;
@@ -417,6 +418,8 @@ DeviceUnload (
     if (g_db_elements != NULL) {
         ExFreePoolWithTag(g_db_elements, 'Json');
         ExDeleteResourceLite(&g_db_elementsLock);
+        g_db_elements_count = 0;
+        g_db_elements = NULL;
         InfoPrint("Elements db free and mutex deleted callback");
     }
 

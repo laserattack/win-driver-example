@@ -23,6 +23,7 @@ NTSTATUS read_db() {
         InfoPrint("Callback: Freeing existing database elements\n");
         ExFreePoolWithTag(g_db_elements, 'Json');
         g_db_elements = NULL;
+        g_db_elements_count = 0;
     }
 
     ExReleaseResourceLite(&g_db_elementsLock);
@@ -63,10 +64,12 @@ NTSTATUS read_db() {
                 &count
             );
 
+            g_db_elements_count = count;
+
             if (g_db_elements) {
                 InfoPrint("Callback: Parsed %lu database elements:\n", count);
                 for (ULONG i = 0; i < count; i++) {
-                    InfoPrint("Callback: [%lu] ObjectName: '%s', Level: %lu\n",
+                    InfoPrint("Callback: [%lu] ObjectName: %s, Level: %lu\n",
                               i,
                               g_db_elements[i].ObjectName,
                               g_db_elements[i].Level);
@@ -89,6 +92,64 @@ NTSTATUS read_db() {
     } else {
         InfoPrint("Callback: Failed to read registry value: 0x%X\n", status);
     }
+
+    return status;
+}
+
+// Функция для поиска уровня (Level) по имени объекта в CHAR строке
+NTSTATUS get_level_by_object_name_char(
+    _In_ PCHAR object_name,
+    _Out_ PULONG level
+)
+{
+    NTSTATUS status = STATUS_NOT_FOUND;
+
+    // Проверяем валидность параметров
+    if (object_name == NULL || level == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    // Проверяем инициализацию базы данных
+    if (g_db_elements == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // Захватываем мьютекс для разделяемого доступа (чтение)
+    ExAcquireResourceExclusiveLite(&g_db_elementsLock, TRUE);
+
+    __try {
+        // Ищем объект в базе данных
+        for (ULONG i = 0; i < g_db_elements_count; i++) {
+            // Сравниваем строки (без учета регистра)
+            if (_stricmp(g_db_elements[i].ObjectName, object_name) == 0) {
+                *level = g_db_elements[i].Level;
+                status = STATUS_SUCCESS;
+
+                // Логируем найденное значение для отладки
+                InfoPrint("Found level for object %s: %lu\n", object_name, *level);
+                break;
+            }
+        }
+
+        if (!NT_SUCCESS(status)) {
+            InfoPrint("Object %s not found in database\n", object_name);
+        }
+    }
+    __finally {
+        // Всегда освобождаем мьютекс
+        ExReleaseResourceLite(&g_db_elementsLock);
+    }
+
+    return status;
+}
+
+// NOTE: Проверяет есть ли доступ у процесса к ключу
+NTSTATUS access_check(
+    _In_ PCHAR object_name
+) {
+    ULONG level = 0;
+    NTSTATUS status;
+    status = get_level_by_object_name_char(object_name, &level);
 
     return status;
 }
