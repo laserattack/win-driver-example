@@ -135,6 +135,17 @@ NTSTATUS access_check(
     _In_ PCHAR process_name,
     _In_ PCHAR key_name
 ) {
+
+    // Если это не управляющая программа и оно хочет тронуть ключ
+    // в котором база правил, то доступа не дается
+    if (
+            strcmp(process_name, "regctrl.exe") != 0
+            && strcmp(key_name, "\\REGISTRY\\MACHINE\\SOFTWARE\\Regfltr") == 0
+    ) {
+
+        return STATUS_ACCESS_DENIED;
+    }
+
     ULONG process_level = 100;
     ULONG key_level = 100;
     NTSTATUS status = STATUS_SUCCESS;
