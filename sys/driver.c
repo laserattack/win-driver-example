@@ -384,7 +384,7 @@ DeviceControl (
 
 }
 
-
+// NOTE: Cleanup
 VOID
 DeviceUnload (
     _In_ PDRIVER_OBJECT DriverObject
