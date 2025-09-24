@@ -34,25 +34,6 @@ CreateCallbackContext(
     _In_ CALLBACK_MODE CallbackMode,
     _In_ PCWSTR AltitudeString
     ) 
-/*++
-
-Routine Description:
-
-    Utility method to create a callback context. Callback context 
-    should be freed using DeleteCallbackContext.
-    
-Arguments:
-
-    CallbackMode - the callback mode value
-
-    AltitudeString - a string with the altitude the callback will be 
-        registered at
-
-Return Value:
-
-    Pointer to the allocated and initialized callback context 
-
---*/
 {
 
     PCALLBACK_CONTEXT CallbackCtx = NULL;

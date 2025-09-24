@@ -85,7 +85,7 @@ DetectOSVersion()
         //
         // default action is to assume this is not win8
         //
-        g_IsWin8OrGreater = FALSE;  
+        g_IsWin8OrGreater = FALSE;
     }
     
 }
