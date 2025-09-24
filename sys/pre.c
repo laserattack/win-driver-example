@@ -191,6 +191,7 @@ LoadImageNotifyRoutine(
     WriteLogToFile(FinalLogLine);
 }
 
+// NOTE: Callback на операции с реестром
 NTSTATUS
 CallbackPreNotificationLog(
     _In_ PCALLBACK_CONTEXT CallbackCtx,
