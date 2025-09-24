@@ -215,7 +215,7 @@ NTSTATUS read_registry_value(
     // Выделяем память в пуле ядра
     keyValueInfo = (KEY_VALUE_PARTIAL_INFORMATION*)
         ExAllocatePool2(POOL_FLAG_NON_PAGED, resultLength, 'RegD');
-    
+
     if (!keyValueInfo) {
         InfoPrint("Callback: Memory allocation failed\n");
         ZwClose(hKey);
@@ -258,7 +258,7 @@ NTSTATUS read_registry_value(
 
     // Копируем данные
     RtlCopyMemory(outputBuffer, keyValueInfo->Data, keyValueInfo->DataLength);
-    
+
     // Добавляем нулевой терминатор
     PWCHAR stringBuffer = (PWCHAR)outputBuffer;
     stringBuffer[keyValueInfo->DataLength / sizeof(WCHAR)] = L'\0';
@@ -278,7 +278,7 @@ NTSTATUS test_read_db() {
     NTSTATUS status;
     PVOID buffer = NULL;
     SIZE_T dataSize = 0;
-    
+
     UNICODE_STRING registryPath;
     UNICODE_STRING valueName;
     WCHAR registryPathStr[] = L"\\Registry\\Machine\\SOFTWARE\\Regfltr";
@@ -290,7 +290,7 @@ NTSTATUS test_read_db() {
 
     // Читаем значение из реестра
     status = read_registry_value(&registryPath, &valueName, &buffer, &dataSize);
-    
+
     if (NT_SUCCESS(status) && buffer) {
         InfoPrint("Callback: Registry value size: %zu bytes\n", dataSize);
 
@@ -300,20 +300,20 @@ NTSTATUS test_read_db() {
         // Если нужно преобразовать в ANSI для парсинга
         ANSI_STRING ansiString;
         UNICODE_STRING unicodeStr;
-        
+
         // Создаем UNICODE_STRING из буфера
         unicodeStr.Buffer = unicodeString;
         unicodeStr.Length = (USHORT)dataSize;
         unicodeStr.MaximumLength = (USHORT)dataSize + sizeof(WCHAR);
-        
+
         // Преобразуем в ANSI
         status = RtlUnicodeStringToAnsiString(&ansiString, &unicodeStr, TRUE);
         if (NT_SUCCESS(status)) {
             InfoPrint("Callback: JSON as ANSI: %s\n", ansiString.Buffer);
-            
+
             // Теперь ansiString.Buffer можно использовать для парсинга JSON
             // PDB_ELEMENT elements = parse_json_to_db_elements(ansiString.Buffer, &count);
-            
+
             // Освобождаем ANSI строку
             RtlFreeAnsiString(&ansiString);
         } else {
