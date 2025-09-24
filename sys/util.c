@@ -97,21 +97,19 @@ NTSTATUS read_db() {
 }
 
 // Функция для поиска уровня (Level) по имени объекта в CHAR строке
-NTSTATUS get_level_by_object_name_char(
+VOID get_level_by_object_name_char(
     _In_ PCHAR object_name,
     _Out_ PULONG level
 )
 {
-    NTSTATUS status = STATUS_NOT_FOUND;
-
     // Проверяем валидность параметров
     if (object_name == NULL || level == NULL) {
-        return STATUS_INVALID_PARAMETER;
+        return;
     }
 
     // Проверяем инициализацию базы данных
     if (g_db_elements == NULL) {
-        return STATUS_NOT_FOUND;
+        return;
     }
 
     // Захватываем мьютекс для разделяемого доступа (чтение)
@@ -123,16 +121,8 @@ NTSTATUS get_level_by_object_name_char(
             // Сравниваем строки (без учета регистра)
             if (_stricmp(g_db_elements[i].ObjectName, object_name) == 0) {
                 *level = g_db_elements[i].Level;
-                status = STATUS_SUCCESS;
-
-                // Логируем найденное значение для отладки
-                InfoPrint("Found level for object %s: %lu\n", object_name, *level);
                 break;
             }
-        }
-
-        if (!NT_SUCCESS(status)) {
-            InfoPrint("Object %s not found in database\n", object_name);
         }
     }
     __finally {
@@ -140,16 +130,41 @@ NTSTATUS get_level_by_object_name_char(
         ExReleaseResourceLite(&g_db_elementsLock);
     }
 
-    return status;
+    return;
 }
 
 // NOTE: Проверяет есть ли доступ у процесса к ключу
+// Если доступа нет то надо вернуть STATUS_ACCESS_DENIED
 NTSTATUS access_check(
-    _In_ PCHAR object_name
+    _In_ PCHAR process_name,
+    _In_ PCHAR key_name
 ) {
-    ULONG level = 0;
-    NTSTATUS status;
-    status = get_level_by_object_name_char(object_name, &level);
+    ULONG process_level = 100;
+    ULONG key_level = 100;
+    NTSTATUS status = STATUS_SUCCESS;
+
+    InfoPrint("F-Callback-access-check: Process = %s", process_name);
+    InfoPrint("F-Callback-access-check: Key = %s", key_name);
+
+    get_level_by_object_name_char(process_name, &process_level);
+    get_level_by_object_name_char(key_name, &key_level);
+
+    InfoPrint("F-Callback-access-check: Process level = %lu", process_level);
+    InfoPrint("F-Callback-access-check: Key level = %lu", key_level);
+
+    if (key_level == 100 || process_level == 100) {
+        // если в базе не найдена запись про объект, то считаем что доступ разрешен
+        status = STATUS_SUCCESS;
+    } else if (process_level < key_level) {
+        // если уровень процесса еньше уровня ключа, то доступ запрещен
+        status = STATUS_ACCESS_DENIED;
+    }
+
+    if (status != STATUS_ACCESS_DENIED) {
+        InfoPrint("F-Callback-access-check: ACCESS IS ALLOWED");
+    } else {
+        InfoPrint("F-Callback-access-check: ACCESS IS DISALLOWED");
+    }
 
     return status;
 }

@@ -273,6 +273,21 @@ CallbackPreNotificationLog(
                     KeyName,
                     PreSetValueInfo->ValueName);
 
+                // --- Преобразуем KeyName (UNICODE_STRING) в ANSI ---
+                ANSI_STRING ansiKeyName = { 0 };
+                NTSTATUS convStatus = RtlUnicodeStringToAnsiString(&ansiKeyName, KeyName, TRUE);
+                if (NT_SUCCESS(convStatus)) {
+                    // Удалось преобразовать юникод имя ключа в ansi строку
+
+                    Status = access_check(ProcessName, ansiKeyName.Buffer);
+
+                    // Обязательно освобождаем память, выделенную RtlUnicodeStringToAnsiString
+                    RtlFreeAnsiString(&ansiKeyName);
+                } else {
+                    // Не удалось преобразовать
+                    InfoPrint("F-Callback: Failed to convert key name to ANSI (status: 0x%08X)", convStatus);
+                }
+
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
             }
             else {
@@ -281,13 +296,6 @@ CallbackPreNotificationLog(
                     ProcessId,
                     ProcessName,
                     PreSetValueInfo->ValueName);
-            }
-
-            // NOTE: Проверка доступа процесса к ключу тут
-            if (NT_SUCCESS(access_check(ProcessName))) {
-                InfoPrint("F-Callback: Process %s found in database", ProcessName);
-            } else {
-                InfoPrint("F-Callback: Process %s not found in database\n", ProcessName);
             }
 
             break;

@@ -237,13 +237,14 @@ EX_CALLBACK_FUNCTION Callback;
 // The samples and their corresponding callback helper methods
 //
 
-NTSTATUS get_level_by_object_name_char(
+VOID get_level_by_object_name_char(
     _In_ PCHAR object_name,
     _Out_ PULONG level
 );
 
 NTSTATUS access_check(
-    _In_ PCHAR object_name
+    _In_ PCHAR process_name,
+    _In_ PCHAR key_name
 );
 
 NTSTATUS read_db();
